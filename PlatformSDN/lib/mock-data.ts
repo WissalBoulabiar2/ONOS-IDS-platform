@@ -11,6 +11,8 @@ import {
   DashboardStats,
 } from "./types"
 
+const RECORDED_AT = new Date("2026-03-31T15:00:00Z")
+
 // ============ DEVICES ============
 export const mockDevices: Device[] = [
   {
@@ -24,7 +26,7 @@ export const mockDevices: Device[] = [
     port_count: 48,
     latitude: 40.7128,
     longitude: -74.006,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
   {
     id: "of:0000000000000002",
@@ -37,7 +39,7 @@ export const mockDevices: Device[] = [
     port_count: 48,
     latitude: 40.7138,
     longitude: -74.016,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
   {
     id: "of:0000000000000101",
@@ -50,7 +52,7 @@ export const mockDevices: Device[] = [
     port_count: 24,
     latitude: 40.7118,
     longitude: -74.007,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
   {
     id: "of:0000000000000102",
@@ -63,7 +65,7 @@ export const mockDevices: Device[] = [
     port_count: 24,
     latitude: 40.7148,
     longitude: -74.015,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
   {
     id: "of:0000000000000103",
@@ -76,7 +78,7 @@ export const mockDevices: Device[] = [
     port_count: 32,
     latitude: 40.7128,
     longitude: -74.026,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
 ]
 
@@ -92,7 +94,7 @@ export const mockPorts: Port[] = [
     txBytes: 987654321,
     rxPackets: 5000000,
     txPackets: 4500000,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
   {
     id: "port-1-2",
@@ -104,7 +106,7 @@ export const mockPorts: Port[] = [
     txBytes: 1500000000,
     rxPackets: 8000000,
     txPackets: 7000000,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
   {
     id: "port-1-3",
@@ -116,7 +118,7 @@ export const mockPorts: Port[] = [
     txBytes: 400000000,
     rxPackets: 2000000,
     txPackets: 1800000,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
   {
     id: "port-2-1",
@@ -128,7 +130,7 @@ export const mockPorts: Port[] = [
     txBytes: 900000000,
     rxPackets: 4500000,
     txPackets: 4000000,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
   {
     id: "port-101-1",
@@ -140,7 +142,7 @@ export const mockPorts: Port[] = [
     txBytes: 250000000,
     rxPackets: 1000000,
     txPackets: 900000,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
 ]
 
@@ -155,7 +157,7 @@ export const mockLinks: Link[] = [
     status: "active",
     latency: 2.5,
     available_bandwidth: 10000000000,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
   {
     id: "link-1-101",
@@ -166,7 +168,7 @@ export const mockLinks: Link[] = [
     status: "active",
     latency: 1.2,
     available_bandwidth: 1000000000,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
   {
     id: "link-1-103",
@@ -177,7 +179,7 @@ export const mockLinks: Link[] = [
     status: "active",
     latency: 3.1,
     available_bandwidth: 1000000000,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
   {
     id: "link-2-102",
@@ -188,7 +190,7 @@ export const mockLinks: Link[] = [
     status: "inactive",
     latency: 5.0,
     available_bandwidth: 0,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
 ]
 
@@ -208,7 +210,7 @@ export const mockFlows: FlowRule[] = [
     state: "added",
     appId: "org.onlab.app",
     duration: 3600,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
   {
     id: "flow-2",
@@ -223,7 +225,7 @@ export const mockFlows: FlowRule[] = [
     state: "added",
     appId: "org.onlab.app",
     duration: 1800,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
   {
     id: "flow-3",
@@ -237,7 +239,7 @@ export const mockFlows: FlowRule[] = [
     state: "pending",
     appId: "org.onlab.reactive",
     duration: 60,
-    recordedAt: new Date(),
+    recordedAt: RECORDED_AT,
   },
 ]
 
@@ -250,7 +252,7 @@ export const mockAlerts: Alert[] = [
     deviceId: "of:0000000000000102",
     message: "Switch-Access-2 is offline",
     resolved: false,
-    createdAt: new Date(Date.now() - 300000), // 5 min ago
+    createdAt: new Date("2026-03-31T14:55:00Z"),
   },
   {
     id: "alert-2",
@@ -260,7 +262,7 @@ export const mockAlerts: Alert[] = [
     portId: "port-1-1",
     message: "Port eth0 on Switch-Core-1 has 95% bandwidth usage",
     resolved: false,
-    createdAt: new Date(Date.now() - 600000), // 10 min ago
+    createdAt: new Date("2026-03-31T14:50:00Z"),
   },
   {
     id: "alert-3",
@@ -268,7 +270,7 @@ export const mockAlerts: Alert[] = [
     severity: "critical",
     message: "Link between Switch-Core-2 and Switch-Access-2 is down",
     resolved: false,
-    createdAt: new Date(Date.now() - 1200000), // 20 min ago
+    createdAt: new Date("2026-03-31T14:40:00Z"),
   },
   {
     id: "alert-4",
@@ -277,8 +279,8 @@ export const mockAlerts: Alert[] = [
     deviceId: "of:0000000000000001",
     message: "Device CPU usage at 78%",
     resolved: true,
-    createdAt: new Date(Date.now() - 7200000), // 2 hours ago
-    resolvedAt: new Date(Date.now() - 3600000), // 1 hour ago
+    createdAt: new Date("2026-03-31T13:00:00Z"),
+    resolvedAt: new Date("2026-03-31T14:00:00Z"),
   },
 ]
 

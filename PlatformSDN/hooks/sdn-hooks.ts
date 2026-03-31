@@ -141,9 +141,11 @@ export function useAlerts(openOnly = false) {
 
 // Hook: Real-time updates (simulate WebSocket)
 export function useRealtimeUpdates(interval = 5000) {
-  const [timestamp, setTimestamp] = useState<Date>(new Date())
+  const [timestamp, setTimestamp] = useState<Date | null>(null)
 
   useEffect(() => {
+    setTimestamp(new Date())
+
     const timer = setInterval(() => {
       setTimestamp(new Date())
     }, interval)

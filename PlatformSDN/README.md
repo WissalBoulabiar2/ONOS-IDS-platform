@@ -62,7 +62,7 @@ Le backend expose deja plusieurs endpoints REST pour ONOS:
 - PostgreSQL n'est pas encore integre
 - l'authentification JWT n'est pas encore implemente
 - les alertes temps reel via WebSocket ne sont pas encore branchees
-- quelques pages heritees du template d'origine existent encore dans le projet mais ne font pas partie du coeur SDN
+- le backend actuel reste monolithique et doit encore etre modularise
 
 ## 4. Architecture cible
 
@@ -175,6 +175,8 @@ PlatformSDN/
 |   |-- configuration/page.tsx    # Parametres plateforme / ONOS
 |   |-- login/page.tsx            # Connexion operateur
 |   |-- register/page.tsx         # Provisioning utilisateur
+|   |-- contact/page.tsx          # Support operateur
+|   |-- forgot-password/page.tsx  # Recuperation de mot de passe
 |   |-- layout.tsx                # Layout principal
 |   |-- globals.css               # Styles globaux
 |
@@ -378,7 +380,7 @@ L'etape suivante sera de brancher progressivement les pages frontend sur ces end
 - [x] Alerts page
 - [x] Configuration page
 - [x] Login / Register adaptes au contexte SDN
-- [ ] Nettoyage complet des pages marketing heritees
+- [x] Nettoyage complet des pages marketing heritees
 - [ ] Harmonisation finale des mocks et types
 
 ### Phase 2 - Integration backend

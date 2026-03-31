@@ -63,7 +63,7 @@ export default function TopologyPage() {
 
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur lg:min-w-[280px]">
               <p className="mb-2 text-xs uppercase tracking-[0.25em] text-cyan-200">Last refresh</p>
-              <p className="text-2xl font-semibold">{timestamp.toLocaleTimeString()}</p>
+              <p className="text-2xl font-semibold">{timestamp ? timestamp.toLocaleTimeString() : "--:--:--"}</p>
               <p className="mt-2 text-sm text-slate-300">
                 Topology data is refreshed automatically while the frontend is running.
               </p>

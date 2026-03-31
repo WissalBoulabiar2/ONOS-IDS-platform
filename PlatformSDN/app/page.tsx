@@ -37,7 +37,7 @@ const timelineEvents: TimelineEvent[] = [
     id: "1",
     title: "Core switch registered",
     description: "Switch-Core-1 successfully rejoined the ONOS controller.",
-    timestamp: new Date(Date.now() - 5 * 60000),
+    timestamp: new Date("2026-03-31T14:55:00Z"),
     type: "success",
     device: "of:0000000000000001",
   },
@@ -45,7 +45,7 @@ const timelineEvents: TimelineEvent[] = [
     id: "2",
     title: "Inter-switch link degraded",
     description: "Packet loss detected between aggregation switches during refresh cycle.",
-    timestamp: new Date(Date.now() - 18 * 60000),
+    timestamp: new Date("2026-03-31T14:42:00Z"),
     type: "warning",
     device: "link:s1-s2",
   },
@@ -53,7 +53,7 @@ const timelineEvents: TimelineEvent[] = [
     id: "3",
     title: "Flow policy updated",
     description: "Forwarding rule priority increased on the distribution segment.",
-    timestamp: new Date(Date.now() - 58 * 60000),
+    timestamp: new Date("2026-03-31T14:02:00Z"),
     type: "info",
     device: "of:0000000000000002",
   },
@@ -61,7 +61,7 @@ const timelineEvents: TimelineEvent[] = [
     id: "4",
     title: "Recovery completed",
     description: "Topology synchronization completed after controller heartbeat check.",
-    timestamp: new Date(Date.now() - 2 * 3600000),
+    timestamp: new Date("2026-03-31T13:00:00Z"),
     type: "success",
     device: "controller",
   },
@@ -75,7 +75,7 @@ export default function DashboardPage() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
 
   const stats = generateDashboardStats()
-  const offlineDevices = devices.filter((device) => !device.available).length
+  const offlineDevices = devices.filter((device) => device.status !== "active").length
   const warningLevel = alerts.length > 2 || offlineDevices > 0 ? "warning" : "healthy"
   const healthScore = Math.max(
     68,
@@ -123,7 +123,7 @@ export default function DashboardPage() {
                     <Activity className="h-4 w-4" />
                     <span className="text-xs uppercase tracking-[0.25em]">Refresh</span>
                   </div>
-                  <p className="text-lg font-semibold">{timestamp.toLocaleTimeString()}</p>
+                  <p className="text-lg font-semibold">{timestamp ? timestamp.toLocaleTimeString() : "--:--:--"}</p>
                   <p className="mt-1 text-xs text-slate-400">Dashboard updated every 5 seconds</p>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
@@ -197,7 +197,7 @@ export default function DashboardPage() {
           />
           <KPICard
             title="Active Flow Rules"
-            value={stats.activeFlows}
+            value={stats.totalFlows}
             unit="rules"
             status="healthy"
             trend={12}
@@ -253,8 +253,7 @@ export default function DashboardPage() {
                     <>
                       <p className="font-mono text-sm text-cyan-600 dark:text-cyan-400">{selectedNodeDetails.id}</p>
                       <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                        Type: {selectedNodeDetails.type} • Status:{" "}
-                        {selectedNodeDetails.available ? "active" : "inactive"}
+                        Type: {selectedNodeDetails.type} • Status: {selectedNodeDetails.status}
                       </p>
                     </>
                   ) : (

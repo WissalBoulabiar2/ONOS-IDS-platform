@@ -75,7 +75,7 @@ export default function AlertsPage() {
 
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur lg:min-w-[300px]">
               <p className="mb-2 text-xs uppercase tracking-[0.25em] text-rose-100">Latest refresh</p>
-              <p className="text-2xl font-semibold">{timestamp.toLocaleTimeString()}</p>
+              <p className="text-2xl font-semibold">{timestamp ? timestamp.toLocaleTimeString() : "--:--:--"}</p>
               <p className="mt-2 text-sm text-slate-300">
                 Alert polling is simulated for now and will later be replaced by WebSocket and backend events.
               </p>
@@ -247,7 +247,7 @@ export default function AlertsPage() {
                               <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
                                 <div className="rounded-2xl bg-white/60 p-3 dark:bg-gray-950/60">
                                   <p className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Created</p>
-                                  <p className="mt-2 font-medium">{new Date(alert.createdAt).toLocaleString()}</p>
+                                  <p className="mt-2 font-medium">{formatAlertTimestamp(alert.createdAt)}</p>
                                 </div>
                                 <div className="rounded-2xl bg-white/60 p-3 dark:bg-gray-950/60">
                                   <p className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Device</p>
@@ -256,7 +256,7 @@ export default function AlertsPage() {
                                 <div className="rounded-2xl bg-white/60 p-3 dark:bg-gray-950/60">
                                   <p className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Resolved</p>
                                   <p className="mt-2 font-medium">
-                                    {alert.resolvedAt ? new Date(alert.resolvedAt).toLocaleString() : "Pending"}
+                                    {alert.resolvedAt ? formatAlertTimestamp(alert.resolvedAt) : "Pending"}
                                   </p>
                                 </div>
                               </div>
@@ -359,4 +359,12 @@ export default function AlertsPage() {
       </main>
     </div>
   )
+}
+
+function formatAlertTimestamp(value: Date) {
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(new Date(value))
 }

@@ -2,255 +2,130 @@
 
 import type React from "react"
 
+import { useState } from "react"
+import Link from "next/link"
 import Navigation from "@/components/navigation"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { ArrowRight, ArrowLeft, Mail, CheckCircle } from "lucide-react"
-import Link from "next/link"
-import { useState } from "react"
+import { ArrowLeft, ArrowRight, CheckCircle2, KeyRound, ShieldCheck } from "lucide-react"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
-  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Handle password reset logic here
-    console.log("Password reset request for:", email)
-    setIsSubmitted(true)
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setSubmitted(true)
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-white">
       <Navigation />
 
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          {!isSubmitted ? (
-            <>
-              {/* Header */}
-              <div className="text-center">
-                <div className="mx-auto h-16 w-16 bg-cyan-100 rounded-full flex items-center justify-center mb-6">
-                  <Mail className="h-8 w-8 text-cyan-600" />
-                </div>
-                <h2 className="text-3xl font-serif font-black text-gray-900">Forgot Password?</h2>
-                <p className="mt-2 text-gray-600 font-sans">
-                  No worries! Enter your email and we'll send you reset instructions.
-                </p>
-              </div>
+      <main className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-7xl items-center px-4 py-8 sm:px-6 lg:px-8">
+        <div className="grid w-full grid-cols-1 gap-8 lg:grid-cols-2">
+          <section className="rounded-3xl border border-gray-200 bg-gradient-to-br from-slate-950 via-cyan-950 to-slate-900 p-6 text-white shadow-xl sm:p-8">
+            <div className="mb-4 flex flex-wrap gap-2">
+              <Badge className="border-cyan-400/20 bg-cyan-400/10 text-cyan-100">
+                Account Recovery
+              </Badge>
+              <Badge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-100">
+                Operator Access
+              </Badge>
+            </div>
+            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Reset Operator Password</h1>
+            <p className="mt-4 max-w-xl text-sm text-slate-300 sm:text-base">
+              This recovery page is prepared for the future authentication backend. It will later trigger
+              a secure reset workflow for admin, operator, and viewer accounts.
+            </p>
 
-              {/* Reset Form */}
-              <Card className="border-0 shadow-xl">
-                <CardHeader className="text-center pb-4">
-                  <CardTitle className="text-2xl font-serif font-bold">Reset Password</CardTitle>
-                  <CardDescription className="font-sans">
-                    Enter your email address and we'll send you a link to reset your password
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
+            <div className="mt-8 space-y-4">
+              <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <ShieldCheck className="mt-0.5 h-5 w-5 text-emerald-300" />
+                <div>
+                  <p className="font-semibold">Secure recovery</p>
+                  <p className="mt-1 text-sm text-slate-300">
+                    The final implementation will use backend validation, email tokens, and account auditing.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <KeyRound className="mt-0.5 h-5 w-5 text-cyan-300" />
+                <div>
+                  <p className="font-semibold">Platform roles</p>
+                  <p className="mt-1 text-sm text-slate-300">
+                    Recovery will support administrator, operator, and viewer sessions separately.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+              <CardHeader>
+                <CardTitle className="text-2xl">Password Recovery</CardTitle>
+                <CardDescription>
+                  Enter your operator email to simulate a password reset request.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {submitted ? (
+                  <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-8 text-center dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                    <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-emerald-500" />
+                    <p className="text-xl font-semibold">Reset Request Sent</p>
+                    <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+                      A future backend workflow will send a secure reset link to <span className="font-medium">{email}</span>.
+                    </p>
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                      <Button asChild className="bg-cyan-600 text-white hover:bg-cyan-700">
+                        <Link href="/login">Return To Login</Link>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setSubmitted(false)}
+                        className="border-gray-300 text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+                      >
+                        Submit Another Email
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
                   <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-2">
-                      <Label htmlFor="email" className="text-sm font-medium text-gray-700 font-sans">
-                        Email Address
-                      </Label>
+                      <Label htmlFor="email">Operator Email</Label>
                       <Input
                         id="email"
-                        name="email"
                         type="email"
-                        autoComplete="email"
-                        required
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 focus:z-10 sm:text-sm font-sans"
-                        placeholder="Enter your email address"
+                        onChange={(event) => setEmail(event.target.value)}
+                        placeholder="operator@platformsdn.local"
+                        required
                       />
                     </div>
 
-                    <Button
-                      type="submit"
-                      className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 font-sans"
-                    >
-                      Send Reset Instructions
+                    <Button type="submit" className="w-full bg-cyan-600 text-white hover:bg-cyan-700">
+                      Request Password Reset
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
+
+                    <Link
+                      href="/login"
+                      className="inline-flex items-center gap-2 text-sm font-medium text-cyan-600 hover:text-cyan-500 dark:text-cyan-400"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                      Back to login
+                    </Link>
                   </form>
-
-                  <div className="mt-6">
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-gray-300" />
-                      </div>
-                      <div className="relative flex justify-center text-sm">
-                        <span className="px-2 bg-white text-gray-500 font-sans">Remember your password?</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-6">
-                      <Link href="/login">
-                        <Button
-                          variant="outline"
-                          className="w-full border-cyan-600 text-cyan-600 hover:bg-cyan-50 bg-transparent font-sans"
-                        >
-                          <ArrowLeft className="mr-2 h-4 w-4" />
-                          Back to Sign In
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          ) : (
-            <>
-              {/* Success State */}
-              <div className="text-center">
-                <div className="mx-auto h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                </div>
-                <h2 className="text-3xl font-serif font-black text-gray-900">Check Your Email</h2>
-                <p className="mt-2 text-gray-600 font-sans">
-                  We've sent password reset instructions to your email address.
-                </p>
-              </div>
-
-              <Card className="border-0 shadow-xl">
-                <CardContent className="pt-6">
-                  <div className="text-center space-y-4">
-                    <div className="bg-cyan-50 rounded-lg p-4">
-                      <p className="text-sm text-cyan-800 font-sans">
-                        <strong>Email sent to:</strong> {email}
-                      </p>
-                    </div>
-
-                    <div className="space-y-3 text-sm text-gray-600 font-sans">
-                      <p>Please check your email and click the reset link to create a new password.</p>
-                      <p>
-                        <strong>Didn't receive the email?</strong> Check your spam folder or contact our support team.
-                      </p>
-                    </div>
-
-                    <div className="space-y-3 pt-4">
-                      <Button
-                        onClick={() => setIsSubmitted(false)}
-                        variant="outline"
-                        className="w-full border-cyan-600 text-cyan-600 hover:bg-cyan-50 bg-transparent font-sans"
-                      >
-                        Try Different Email
-                      </Button>
-
-                      <Link href="/login">
-                        <Button className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-sans">
-                          <ArrowLeft className="mr-2 h-4 w-4" />
-                          Back to Sign In
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
-
-          {/* Help Section */}
-          <div className="text-center">
-            <p className="text-xs text-gray-500 font-sans mb-2">
-              Need help? Contact our support team at{" "}
-              <a href="mailto:support@pmsinvestment.com" className="text-cyan-600 hover:text-cyan-700">
-                support@pmsinvestment.com
-              </a>
-            </p>
-            <p className="text-xs text-gray-500 font-sans">
-              Or call us at{" "}
-              <a href="tel:+919876543210" className="text-cyan-600 hover:text-cyan-700">
-                +91 98765 43210
-              </a>
-            </p>
-          </div>
+                )}
+              </CardContent>
+            </Card>
+          </section>
         </div>
-      </div>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-2xl font-serif font-black text-cyan-400 mb-4">PMS Investment Services</h3>
-              <p className="text-gray-400 font-sans mb-4">
-                Empowering your financial future with expertise, transparency, and unwavering trust.
-              </p>
-              <div className="text-sm text-gray-400 font-sans">
-                <p>SEBI Registered Investment Advisor</p>
-                <p>Registration No: INA000012345</p>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-lg font-serif font-bold mb-4">Services</h4>
-              <ul className="space-y-2 text-gray-400 font-sans">
-                <li>
-                  <Link href="/services/portfolio-management" className="hover:text-cyan-400 transition-colors">
-                    Portfolio Management
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/services/wealth-planning" className="hover:text-cyan-400 transition-colors">
-                    Wealth Planning
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/services/risk-assessment" className="hover:text-cyan-400 transition-colors">
-                    Risk Assessment
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/services/tax-optimization" className="hover:text-cyan-400 transition-colors">
-                    Tax Optimization
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-lg font-serif font-bold mb-4">Company</h4>
-              <ul className="space-y-2 text-gray-400 font-sans">
-                <li>
-                  <Link href="/about" className="hover:text-cyan-400 transition-colors">
-                    About Us
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/about#team" className="hover:text-cyan-400 transition-colors">
-                    Our Team
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="hover:text-cyan-400 transition-colors">
-                    Careers
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="hover:text-cyan-400 transition-colors">
-                    Contact
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-lg font-serif font-bold mb-4">Contact Info</h4>
-              <div className="space-y-2 text-gray-400 font-sans">
-                <p>📧 info@pmsinvestment.com</p>
-                <p>📞 +91 98765 43210</p>
-                <p>📍 Mumbai, Maharashtra</p>
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center">
-            <p className="text-gray-400 font-sans">
-              © 2024 PMS Investment Services. All rights reserved by <a href="https://codescandy.com/" target="_blank">CodesCandy</a>. Distributed by <a href="https://themewagon.com" target="_blank">ThemeWagon</a>.
-            </p>
-          </div>
-        </div>
-      </footer>
+      </main>
     </div>
   )
 }
