@@ -17,12 +17,14 @@ if (typeof window !== "undefined") {
 interface TopologyMapProps {
   nodes: TopologyNode[]
   edges: TopologyEdge[]
+  selectedNode?: string | null
   onNodeClick?: (nodeId: string) => void
 }
 
 export function TopologyMap({
   nodes,
   edges,
+  selectedNode,
   onNodeClick,
 }: TopologyMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -30,6 +32,11 @@ export function TopologyMap({
 
   useEffect(() => {
     if (!containerRef.current || !cytoscape) return
+
+    if (cyRef.current) {
+      cyRef.current.destroy()
+      cyRef.current = null
+    }
 
     // Convert data to Cytoscape format
     const elements = [
@@ -135,8 +142,7 @@ export function TopologyMap({
         layout: {
           name: "cose",
           directed: false,
-          animate: true,
-          animationDuration: 500,
+          animate: false,
           avoidOverlap: true,
           nodeSpacing: 10,
           gravity: 1,
@@ -158,12 +164,30 @@ export function TopologyMap({
 
       // Cleanup on unmount
       return () => {
+        cy.stop()
         cy.destroy()
+        cyRef.current = null
       }
     } catch (err) {
       console.error("Cytoscape initialization error:", err)
     }
   }, [nodes, edges, onNodeClick])
+
+  useEffect(() => {
+    const cy = cyRef.current
+
+    if (!cy) return
+
+    cy.elements().unselect()
+
+    if (!selectedNode) return
+
+    const activeNode = cy.getElementById(selectedNode)
+    if (activeNode.length > 0) {
+      activeNode.select()
+      cy.center(activeNode)
+    }
+  }, [selectedNode])
 
   return (
     <Card className="w-full h-full bg-gray-900 border-gray-700">

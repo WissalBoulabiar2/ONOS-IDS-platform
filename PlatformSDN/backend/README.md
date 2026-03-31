@@ -161,11 +161,11 @@ Response:
 
 ## 🔗 Intégration Frontend
 
-Le frontend appelle les endpoints du backend via la variable d'environnement `REACT_APP_API_URL`:
+Le frontend appelle les endpoints du backend via la variable d'environnement `NEXT_PUBLIC_API_URL`:
 
 ```typescript
 // Dans les services frontend
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
 
 // Exemple: Récupérer les devices
 const response = await fetch(`${API_URL}/devices`)

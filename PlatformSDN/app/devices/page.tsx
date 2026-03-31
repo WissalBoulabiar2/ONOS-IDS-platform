@@ -1,25 +1,34 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import Navigation from "@/components/navigation"
 import { DeviceTable } from "@/components/DeviceTable"
 import { DeviceDetailsModal } from "@/components/DeviceDetailsModal"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
 import { useDevices } from "@/hooks/sdn-hooks"
+import { getDevicePorts } from "@/lib/mock-data"
 import {
-  HardDrive,
-  Plus,
-  RefreshCw,
   AlertTriangle,
+  ArrowRight,
+  Cpu,
+  HardDrive,
+  Network,
+  RefreshCw,
+  Server,
+  ShieldCheck,
 } from "lucide-react"
 
 interface Device {
   id: string
   type: string
   available: boolean
+  name?: string
   manufacturer?: string
   serialNumber?: string
+  portCount?: number
 }
 
 interface Port {
@@ -40,42 +49,37 @@ export default function DevicesPage() {
   const [showModal, setShowModal] = useState(false)
   const [portsLoading, setPortsLoading] = useState(false)
 
-  // Convert mock data to Device interface
   useEffect(() => {
     if (hookDevices && hookDevices.length > 0) {
       const formattedDevices: Device[] = hookDevices.map((d: any) => ({
         id: d.id || "unknown",
         type: d.type || "SWITCH",
-        available: d.available !== false,
+        available: d.status ? d.status === "active" : d.available !== false,
+        name: d.name || d.id || "Unnamed device",
         manufacturer: d.manufacturer || "Unknown",
         serialNumber: d.serialNumber || "N/A",
+        portCount: d.port_count ?? getDevicePorts(d.id || "").length,
       }))
       setDevices(formattedDevices)
     }
   }, [hookDevices])
 
-  // Mock ports data for selected device
-  const getMockPorts = (deviceId: string): Port[] => {
-    const portCount = Math.floor(Math.random() * 4) + 2 // 2-5 ports
-    return Array.from({ length: portCount }, (_, i) => ({
-      portNumber: i + 1,
-      enabled: Math.random() > 0.2,
-      live: Math.random() > 0.3,
-      rxBytes: Math.floor(Math.random() * 1000000),
-      txBytes: Math.floor(Math.random() * 900000),
-      rxPackets: Math.floor(Math.random() * 100000),
-      txPackets: Math.floor(Math.random() * 90000),
-    }))
-  }
-
   const handleSelectDevice = async (device: Device) => {
     setSelectedDevice(device)
     setPortsLoading(true)
 
-    // Simulate API call delay
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    const mockPorts = getMockPorts(device.id)
+    const mockPorts = getDevicePorts(device.id).map((port) => ({
+      portNumber: port.portNumber,
+      enabled: port.status === "enabled",
+      live: port.status === "enabled",
+      rxBytes: port.rxBytes,
+      txBytes: port.txBytes,
+      rxPackets: port.rxPackets,
+      txPackets: port.txPackets,
+    }))
+
     setPorts(mockPorts)
     setPortsLoading(false)
     setShowModal(true)
@@ -83,126 +87,137 @@ export default function DevicesPage() {
 
   const handleAction = (action: string, device: Device) => {
     console.log(`Action: ${action} on device: ${device.id}`)
-    // TODO: Implement actions
   }
 
   const handleRefresh = () => {
-    // TODO: Trigger refresh from hook
     console.log("Refreshing devices...")
   }
 
-  // Statistics
   const onlineCount = devices.filter((d) => d.available).length
   const offlineCount = devices.filter((d) => !d.available).length
+  const totalPorts = devices.reduce((sum, device) => sum + (device.portCount || 0), 0)
+  const coreDevices = devices.filter((device) => device.type === "switch").length
+
+  const selectedDeviceSummary = useMemo(() => {
+    if (!selectedDevice) return null
+    return devices.find((device) => device.id === selectedDevice.id) ?? selectedDevice
+  }, [devices, selectedDevice])
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950">
       <Navigation />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                <HardDrive className="h-8 w-8 text-cyan-600 dark:text-cyan-400" />
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <section className="mb-8 rounded-3xl border border-gray-200 bg-gradient-to-br from-slate-950 via-cyan-950 to-slate-900 p-6 text-white shadow-xl sm:p-8">
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="mb-4 flex flex-wrap gap-2">
+                <Badge className="border-cyan-400/20 bg-cyan-400/10 text-cyan-200">
+                  Device Inventory
+                </Badge>
+                <Badge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
+                  Monitoring Ready
+                </Badge>
+              </div>
+              <h1 className="mb-3 flex items-center gap-3 text-4xl font-bold tracking-tight sm:text-5xl">
+                <HardDrive className="h-10 w-10 text-cyan-400" />
                 Network Devices
               </h1>
-              <p className="text-gray-600 dark:text-gray-400">
-                Manage and monitor all network equipments
+              <p className="max-w-2xl text-sm text-slate-300 sm:text-base">
+                Review SDN switches and routers, inspect availability, and prepare this inventory view for
+                backend-driven details such as live ports, metrics, and flow context.
               </p>
             </div>
 
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={handleRefresh}
-                className="gap-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Refresh
-              </Button>
-              <Button className="gap-2 bg-cyan-600 hover:bg-cyan-700">
-                <Plus className="h-4 w-4" />
-                Add Device
-              </Button>
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur lg:min-w-[300px]">
+              <p className="mb-2 text-xs uppercase tracking-[0.25em] text-cyan-200">Current focus</p>
+              <p className="text-2xl font-semibold">
+                {offlineCount > 0 ? `${offlineCount} device(s) offline` : "All discovered devices reachable"}
+              </p>
+              <p className="mt-2 text-sm text-slate-300">
+                Use the detailed modal to validate port activity before connecting real backend endpoints.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleRefresh}
+                  className="border-white/20 bg-transparent text-white hover:bg-white/10"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Refresh
+                </Button>
+                <Button asChild className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
+                  <Link href="/topology">
+                    Open Topology
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                Total Devices
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                {devices.length}
+        <section className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+            <CardContent className="pt-6">
+              <div className="mb-3 flex items-center justify-between">
+                <Network className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                <span className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Inventory</span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                Network equipments
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">{devices.length}</p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Managed devices discovered in the platform
               </p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
-                Online
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
-                {onlineCount}
+          <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+            <CardContent className="pt-6">
+              <div className="mb-3 flex items-center justify-between">
+                <ShieldCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Online</span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                Active devices
+              <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{onlineCount}</p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Devices currently available in the mock environment
               </p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-red-600 dark:text-red-400">
-                Offline
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-red-600 dark:text-red-400">
-                {offlineCount}
+          <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+            <CardContent className="pt-6">
+              <div className="mb-3 flex items-center justify-between">
+                <Server className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                <span className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Ports</span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                Unreachable
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">{totalPorts}</p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Total ports declared across the device inventory
               </p>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-blue-600 dark:text-blue-400">
-                Success Rate
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+          <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+            <CardContent className="pt-6">
+              <div className="mb-3 flex items-center justify-between">
+                <Cpu className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                <span className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Availability</span>
+              </div>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">
                 {devices.length > 0
                   ? ((onlineCount / devices.length) * 100).toFixed(0)
                   : "0"}
                 %
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                Availability rate
+              </p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Reachability rate across all managed devices
               </p>
             </CardContent>
           </Card>
-        </div>
+        </section>
 
-        {/* Alerts */}
         {offlineCount > 0 && (
-          <div className="mb-8 p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg flex items-start gap-3">
+          <div className="mb-8 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
             <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
             <div>
               <h3 className="font-semibold text-red-900 dark:text-red-300">
@@ -215,22 +230,70 @@ export default function DevicesPage() {
           </div>
         )}
 
-        {/* Devices Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Device List</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <DeviceTable
-              devices={devices}
-              isLoading={loading}
-              onSelectDevice={handleSelectDevice}
-              onActionClick={handleAction}
-            />
-          </CardContent>
-        </Card>
+        <section className="grid grid-cols-1 gap-8 xl:grid-cols-3">
+          <div className="xl:col-span-2">
+            <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+              <CardContent className="pt-6">
+                <div className="mb-5">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Device Inventory Table</h2>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Filter by status or type, then open the details panel to inspect ports and traffic charts.
+                  </p>
+                </div>
+                <DeviceTable
+                  devices={devices}
+                  isLoading={loading}
+                  onSelectDevice={handleSelectDevice}
+                  onActionClick={handleAction}
+                />
+              </CardContent>
+            </Card>
+          </div>
 
-        {/* Device Details Modal */}
+          <div className="space-y-6">
+            <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+              <CardContent className="pt-6">
+                <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">Selection Summary</h2>
+                {selectedDeviceSummary ? (
+                  <div className="space-y-4 text-sm">
+                    <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-950">
+                      <p className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Device</p>
+                      <p className="mt-2 font-mono text-sm text-cyan-600 dark:text-cyan-400">{selectedDeviceSummary.id}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-950">
+                        <p className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Type</p>
+                        <p className="mt-2 capitalize">{selectedDeviceSummary.type}</p>
+                      </div>
+                      <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-950">
+                        <p className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Ports</p>
+                        <p className="mt-2">{selectedDeviceSummary.portCount || 0}</p>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-950">
+                      <p className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Manufacturer</p>
+                      <p className="mt-2">{selectedDeviceSummary.manufacturer || "Unknown"}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-500 dark:bg-gray-950 dark:text-gray-400">
+                    Select a device from the table to prepare its detailed inspection modal.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+              <CardContent className="pt-6 text-sm text-gray-600 dark:text-gray-400">
+                <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">Operational Notes</h2>
+                <p className="mb-3">Switch-class devices discovered: {coreDevices}</p>
+                <p className="mb-3">Offline devices should later trigger backend-driven alerts and incident workflows.</p>
+                <p>The current modal already prepares the UI for future ONOS-backed port statistics.</p>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+
         <DeviceDetailsModal
           device={selectedDevice}
           ports={ports}

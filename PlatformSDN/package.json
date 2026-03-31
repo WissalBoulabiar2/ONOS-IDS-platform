@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "description": "SDN Platform based on ONOS Controller",
   "main": "index.js",
-    "scripts": {
+  "scripts": {
     "build": "next build",
     "dev": "next dev",
+    "backend": "node backend/server.js",
     "lint": "next lint",
     "start": "next start"
   },

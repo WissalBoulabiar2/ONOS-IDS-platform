@@ -5,11 +5,11 @@ import type React from "react"
 import Navigation from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Eye, EyeOff, ArrowRight, UserPlus } from "lucide-react"
+import { ArrowRight, Eye, EyeOff, KeyRound, Layers3, ShieldCheck, UserPlus } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 
@@ -20,12 +20,12 @@ export default function RegisterPage() {
     firstName: "",
     lastName: "",
     email: "",
-    phone: "",
+    username: "",
     password: "",
     confirmPassword: "",
-    investmentExperience: "",
+    role: "",
     agreeToTerms: false,
-    agreeToMarketing: false,
+    requireMfa: false,
   })
 
   const handleInputChange = (field: string, value: string | boolean) => {
@@ -34,40 +34,38 @@ export default function RegisterPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle registration logic here
     console.log("Registration attempt:", formData)
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-950">
       <Navigation />
 
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-2xl w-full space-y-8">
-          {/* Header */}
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-white px-4 py-12 dark:from-gray-900 dark:to-gray-950 sm:px-6 lg:px-8">
+        <div className="w-full max-w-2xl space-y-8">
           <div className="text-center">
-            <div className="mx-auto h-16 w-16 bg-cyan-100 rounded-full flex items-center justify-center mb-6">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-cyan-100">
               <UserPlus className="h-8 w-8 text-cyan-600" />
             </div>
-            <h2 className="text-3xl font-serif font-black text-gray-900">Create Your Account</h2>
-            <p className="mt-2 text-gray-600 font-sans">Join thousands of successful investors</p>
+            <h2 className="text-3xl font-serif font-black text-gray-900 dark:text-white">Create Operator Account</h2>
+            <p className="mt-2 font-sans text-gray-600 dark:text-gray-400">
+              Provision a new access profile for the SDN supervision platform.
+            </p>
           </div>
 
-          {/* Registration Form */}
           <Card className="border-0 shadow-xl">
-            <CardHeader className="text-center pb-4">
-              <CardTitle className="text-2xl font-serif font-bold">Get Started</CardTitle>
+            <CardHeader className="pb-4 text-center">
+              <CardTitle className="text-2xl font-serif font-bold">Access Provisioning</CardTitle>
               <CardDescription className="font-sans">
-                Fill in your details to create your investment account
+                Define identity, role, and security options for the new platform user.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Personal Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="firstName" className="text-sm font-medium text-gray-700 font-sans">
-                      First Name
+                    <Label htmlFor="firstName" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      First name
                     </Label>
                     <Input
                       id="firstName"
@@ -76,14 +74,14 @@ export default function RegisterPage() {
                       required
                       value={formData.firstName}
                       onChange={(e) => handleInputChange("firstName", e.target.value)}
-                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 font-sans"
-                      placeholder="Enter your first name"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-3 focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                      placeholder="Hafidha"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="lastName" className="text-sm font-medium text-gray-700 font-sans">
-                      Last Name
+                    <Label htmlFor="lastName" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Last name
                     </Label>
                     <Input
                       id="lastName"
@@ -92,66 +90,66 @@ export default function RegisterPage() {
                       required
                       value={formData.lastName}
                       onChange={(e) => handleInputChange("lastName", e.target.value)}
-                      className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 font-sans"
-                      placeholder="Enter your last name"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-3 focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                      placeholder="Sabbar"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Email address
+                    </Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-3 focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                      placeholder="operator@sdn.local"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="username" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Username
+                    </Label>
+                    <Input
+                      id="username"
+                      name="username"
+                      type="text"
+                      required
+                      value={formData.username}
+                      onChange={(e) => handleInputChange("username", e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-3 focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                      placeholder="onos-operator"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700 font-sans">
-                    Email Address
+                  <Label htmlFor="role" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Access role
                   </Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 font-sans"
-                    placeholder="Enter your email address"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-sm font-medium text-gray-700 font-sans">
-                    Phone Number
-                  </Label>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    required
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 font-sans"
-                    placeholder="+91 98765 43210"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="investmentExperience" className="text-sm font-medium text-gray-700 font-sans">
-                    Investment Experience
-                  </Label>
-                  <Select onValueChange={(value) => handleInputChange("investmentExperience", value)}>
-                    <SelectTrigger className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 font-sans">
-                      <SelectValue placeholder="Select your investment experience" />
+                  <Select onValueChange={(value) => handleInputChange("role", value)}>
+                    <SelectTrigger className="w-full rounded-lg border border-gray-300 px-3 py-3 focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                      <SelectValue placeholder="Select the user role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="beginner">Beginner (0-2 years)</SelectItem>
-                      <SelectItem value="intermediate">Intermediate (2-5 years)</SelectItem>
-                      <SelectItem value="experienced">Experienced (5-10 years)</SelectItem>
-                      <SelectItem value="expert">Expert (10+ years)</SelectItem>
+                      <SelectItem value="admin">Administrator</SelectItem>
+                      <SelectItem value="operator">Operator</SelectItem>
+                      <SelectItem value="viewer">Viewer</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* Password Fields */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="text-sm font-medium text-gray-700 font-sans">
+                    <Label htmlFor="password" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       Password
                     </Label>
                     <div className="relative">
@@ -162,12 +160,12 @@ export default function RegisterPage() {
                         required
                         value={formData.password}
                         onChange={(e) => handleInputChange("password", e.target.value)}
-                        className="w-full px-3 py-3 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 font-sans"
-                        placeholder="Create a password"
+                        className="w-full rounded-lg border border-gray-300 px-3 py-3 pr-10 focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        placeholder="Create a secure password"
                       />
                       <button
                         type="button"
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        className="absolute inset-y-0 right-0 flex items-center pr-3"
                         onClick={() => setShowPassword(!showPassword)}
                       >
                         {showPassword ? (
@@ -180,8 +178,8 @@ export default function RegisterPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700 font-sans">
-                      Confirm Password
+                    <Label htmlFor="confirmPassword" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Confirm password
                     </Label>
                     <div className="relative">
                       <Input
@@ -191,12 +189,12 @@ export default function RegisterPage() {
                         required
                         value={formData.confirmPassword}
                         onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                        className="w-full px-3 py-3 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 font-sans"
-                        placeholder="Confirm your password"
+                        className="w-full rounded-lg border border-gray-300 px-3 py-3 pr-10 focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                        placeholder="Confirm the password"
                       />
                       <button
                         type="button"
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                        className="absolute inset-y-0 right-0 flex items-center pr-3"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       >
                         {showConfirmPassword ? (
@@ -209,7 +207,6 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
-                {/* Terms and Conditions */}
                 <div className="space-y-4">
                   <div className="flex items-start space-x-2">
                     <Checkbox
@@ -218,27 +215,27 @@ export default function RegisterPage() {
                       onCheckedChange={(checked) => handleInputChange("agreeToTerms", checked as boolean)}
                       className="mt-1"
                     />
-                    <Label htmlFor="agreeToTerms" className="text-sm text-gray-600 font-sans leading-relaxed">
-                      I agree to the{" "}
-                      <Link href="/terms" className="text-cyan-600 hover:text-cyan-700 font-medium">
-                        Terms of Service
-                      </Link>{" "}
-                      and{" "}
-                      <Link href="/privacy" className="text-cyan-600 hover:text-cyan-700 font-medium">
-                        Privacy Policy
-                      </Link>
+                    <Label
+                      htmlFor="agreeToTerms"
+                      className="text-sm leading-relaxed text-gray-600 dark:text-gray-400"
+                    >
+                      I confirm that this account is authorized to access the SDN control platform and follow internal
+                      access policies.
                     </Label>
                   </div>
 
                   <div className="flex items-start space-x-2">
                     <Checkbox
-                      id="agreeToMarketing"
-                      checked={formData.agreeToMarketing}
-                      onCheckedChange={(checked) => handleInputChange("agreeToMarketing", checked as boolean)}
+                      id="requireMfa"
+                      checked={formData.requireMfa}
+                      onCheckedChange={(checked) => handleInputChange("requireMfa", checked as boolean)}
                       className="mt-1"
                     />
-                    <Label htmlFor="agreeToMarketing" className="text-sm text-gray-600 font-sans leading-relaxed">
-                      I would like to receive investment insights and market updates via email
+                    <Label
+                      htmlFor="requireMfa"
+                      className="text-sm leading-relaxed text-gray-600 dark:text-gray-400"
+                    >
+                      Require additional verification for this account when backend authentication is enabled.
                     </Label>
                   </div>
                 </div>
@@ -246,9 +243,9 @@ export default function RegisterPage() {
                 <Button
                   type="submit"
                   disabled={!formData.agreeToTerms}
-                  className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed font-sans"
+                  className="w-full rounded-lg bg-cyan-600 px-4 py-3 text-sm font-medium text-white hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Create Account
+                  Create Platform User
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </form>
@@ -259,7 +256,7 @@ export default function RegisterPage() {
                     <div className="w-full border-t border-gray-300" />
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white text-gray-500 font-sans">Already have an account?</span>
+                    <span className="bg-white px-2 text-gray-500">Already have an account?</span>
                   </div>
                 </div>
 
@@ -267,9 +264,9 @@ export default function RegisterPage() {
                   <Link href="/login">
                     <Button
                       variant="outline"
-                      className="w-full border-cyan-600 text-cyan-600 hover:bg-cyan-50 bg-transparent font-sans"
+                      className="w-full border-cyan-600 bg-transparent text-cyan-600 hover:bg-cyan-50"
                     >
-                      Sign In Instead
+                      Return To Login
                     </Button>
                   </Link>
                 </div>
@@ -277,92 +274,75 @@ export default function RegisterPage() {
             </CardContent>
           </Card>
 
-          {/* Security Notice */}
-          <div className="text-center">
-            <p className="text-xs text-gray-500 font-sans">
-              Your personal information is encrypted and secure. We are SEBI registered and follow strict compliance
-              standards.
-            </p>
+          <div className="grid grid-cols-1 gap-3 text-left sm:grid-cols-3">
+            <div className="rounded-lg border border-gray-200 bg-white/80 p-3 dark:border-gray-800 dark:bg-gray-900/80">
+              <div className="mb-2 flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
+                <ShieldCheck className="h-4 w-4" />
+                <span className="text-xs font-semibold uppercase tracking-wide">Roles</span>
+              </div>
+              <p className="text-sm text-gray-700 dark:text-gray-300">Admin, operator, and viewer profiles</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-white/80 p-3 dark:border-gray-800 dark:bg-gray-900/80">
+              <div className="mb-2 flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
+                <Layers3 className="h-4 w-4" />
+                <span className="text-xs font-semibold uppercase tracking-wide">Scope</span>
+              </div>
+              <p className="text-sm text-gray-700 dark:text-gray-300">Topology, devices, flows, and alerts</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-white/80 p-3 dark:border-gray-800 dark:bg-gray-900/80">
+              <div className="mb-2 flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
+                <KeyRound className="h-4 w-4" />
+                <span className="text-xs font-semibold uppercase tracking-wide">Security</span>
+              </div>
+              <p className="text-sm text-gray-700 dark:text-gray-300">Prepared for future JWT and MFA support</p>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <footer className="bg-gray-900 py-16 text-white dark:bg-black">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
             <div>
-              <h3 className="text-2xl font-serif font-black text-cyan-400 mb-4">PMS Investment Services</h3>
-              <p className="text-gray-400 font-sans mb-4">
-                Empowering your financial future with expertise, transparency, and unwavering trust.
+              <h3 className="mb-4 text-2xl font-serif font-black text-cyan-400">SDN Platform</h3>
+              <p className="mb-4 font-sans text-gray-400">
+                Web platform for centralized control, monitoring, and supervision of ONOS-managed SDN environments.
               </p>
-              <div className="text-sm text-gray-400 font-sans">
-                <p>SEBI Registered Investment Advisor</p>
-                <p>Registration No: INA000012345</p>
+              <div className="text-sm font-sans text-gray-400">
+                <p>Access profiles for internal operators</p>
+                <p>Prepared for JWT-based authentication</p>
               </div>
             </div>
             <div>
-              <h4 className="text-lg font-serif font-bold mb-4">Services</h4>
-              <ul className="space-y-2 text-gray-400 font-sans">
-                <li>
-                  <Link href="/services/portfolio-management" className="hover:text-cyan-400 transition-colors">
-                    Portfolio Management
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/services/wealth-planning" className="hover:text-cyan-400 transition-colors">
-                    Wealth Planning
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/services/risk-assessment" className="hover:text-cyan-400 transition-colors">
-                    Risk Assessment
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/services/tax-optimization" className="hover:text-cyan-400 transition-colors">
-                    Tax Optimization
-                  </Link>
-                </li>
+              <h4 className="mb-4 text-lg font-serif font-bold">Platform</h4>
+              <ul className="space-y-2 font-sans text-gray-400">
+                <li><Link href="/" className="transition-colors hover:text-cyan-400">Dashboard</Link></li>
+                <li><Link href="/devices" className="transition-colors hover:text-cyan-400">Devices</Link></li>
+                <li><Link href="/topology" className="transition-colors hover:text-cyan-400">Topology</Link></li>
+                <li><Link href="/alerts" className="transition-colors hover:text-cyan-400">Alerts</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-lg font-serif font-bold mb-4">Company</h4>
-              <ul className="space-y-2 text-gray-400 font-sans">
-                <li>
-                  <Link href="/about" className="hover:text-cyan-400 transition-colors">
-                    About Us
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/about#team" className="hover:text-cyan-400 transition-colors">
-                    Our Team
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="hover:text-cyan-400 transition-colors">
-                    Careers
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="hover:text-cyan-400 transition-colors">
-                    Contact
-                  </Link>
-                </li>
+              <h4 className="mb-4 text-lg font-serif font-bold">Access</h4>
+              <ul className="space-y-2 font-sans text-gray-400">
+                <li><Link href="/login" className="transition-colors hover:text-cyan-400">Login</Link></li>
+                <li><Link href="/register" className="transition-colors hover:text-cyan-400">New Operator</Link></li>
+                <li><Link href="/configuration" className="transition-colors hover:text-cyan-400">Controller Settings</Link></li>
+                <li><Link href="/forgot-password" className="transition-colors hover:text-cyan-400">Password Recovery</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-lg font-serif font-bold mb-4">Contact Info</h4>
-              <div className="space-y-2 text-gray-400 font-sans">
-                <p>📧 info@pmsinvestment.com</p>
-                <p>📞 +91 98765 43210</p>
-                <p>📍 Mumbai, Maharashtra</p>
+              <h4 className="mb-4 text-lg font-serif font-bold">Deployment</h4>
+              <div className="space-y-2 font-sans text-gray-400">
+                <p>Frontend: Next.js interface</p>
+                <p>Controller: ONOS REST API</p>
+                <p>Status: Frontend-first implementation</p>
               </div>
             </div>
           </div>
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center">
-            <p className="text-gray-400 font-sans">
-              © 2024 PMS Investment Services. All rights reserved by <a href="https://codescandy.com/" target="_blank">CodesCandy</a>. Distributed by <a href="https://themewagon.com" target="_blank">ThemeWagon</a>.
+          <div className="mt-12 border-t border-gray-800 pt-8 text-center">
+            <p className="font-sans text-gray-400">
+              © 2024 SDN Platform. Account provisioning interface for the ONOS-based supervision environment.
             </p>
           </div>
         </div>

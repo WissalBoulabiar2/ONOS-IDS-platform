@@ -66,7 +66,7 @@ npm run dev
 **Terminal 2 - Backend** (Port 5000):
 ```bash
 cd PlatformSDN
-node backend/server.js
+npm run backend
 ```
 
 ### Option B: Concurrently (si npm package concurrent est installé)

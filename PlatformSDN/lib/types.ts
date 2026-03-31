@@ -126,9 +126,7 @@ export interface StoreState {
 export interface DashboardStats {
   totalDevices: number
   activeDevices: number
-  totalLinks: number  cd PlatformSDN
-  npm run dev  cd PlatformSDN
-  npm run dev
+  totalLinks: number
   activeLinks: number
   totalFlows: number
   criticalAlerts: number

@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import Link from "next/link"
 import Navigation from "@/components/navigation"
 import { HealthScoreCircle } from "@/components/HealthScoreCircle"
 import { KPICard } from "@/components/KPICard"
@@ -8,25 +9,63 @@ import { QuickActions } from "@/components/QuickActions"
 import { TimelineEvents, type TimelineEvent } from "@/components/TimelineEvents"
 import { TopologyMap } from "@/components/TopologyMap"
 import { AlertList } from "@/components/AlertBadge"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
-  useDevices,
-  useTopology,
   useAlerts,
+  useDevices,
   useRealtimeUpdates,
+  useTopology,
 } from "@/hooks/sdn-hooks"
 import { generateDashboardStats } from "@/lib/mock-data"
 import {
   Activity,
-  AlertTriangle,
-  Zap,
-  Network,
   AlertCircle,
-  Shield,
-  Wifi,
-  TrendingUp,
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
   Clock,
+  Network,
+  Shield,
+  TrendingUp,
+  Wifi,
+  Zap,
 } from "lucide-react"
-import Link from "next/link"
+
+const timelineEvents: TimelineEvent[] = [
+  {
+    id: "1",
+    title: "Core switch registered",
+    description: "Switch-Core-1 successfully rejoined the ONOS controller.",
+    timestamp: new Date(Date.now() - 5 * 60000),
+    type: "success",
+    device: "of:0000000000000001",
+  },
+  {
+    id: "2",
+    title: "Inter-switch link degraded",
+    description: "Packet loss detected between aggregation switches during refresh cycle.",
+    timestamp: new Date(Date.now() - 18 * 60000),
+    type: "warning",
+    device: "link:s1-s2",
+  },
+  {
+    id: "3",
+    title: "Flow policy updated",
+    description: "Forwarding rule priority increased on the distribution segment.",
+    timestamp: new Date(Date.now() - 58 * 60000),
+    type: "info",
+    device: "of:0000000000000002",
+  },
+  {
+    id: "4",
+    title: "Recovery completed",
+    description: "Topology synchronization completed after controller heartbeat check.",
+    timestamp: new Date(Date.now() - 2 * 3600000),
+    type: "success",
+    device: "controller",
+  },
+]
 
 export default function DashboardPage() {
   const { devices, loading: devicesLoading } = useDevices()
@@ -36,160 +75,166 @@ export default function DashboardPage() {
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
 
   const stats = generateDashboardStats()
-
-  // Calculate health score (mock)
-  const healthScore = Math.round(
-    ((stats.activeDevices / stats.totalDevices) * 50 +
-      (stats.activeLinks / stats.totalLinks) * 30 +
-      ((10 - alerts.length) / 10) * 20) *
-      100
+  const offlineDevices = devices.filter((device) => !device.available).length
+  const warningLevel = alerts.length > 2 || offlineDevices > 0 ? "warning" : "healthy"
+  const healthScore = Math.max(
+    68,
+    Math.min(
+      99,
+      Math.round(
+        ((stats.activeDevices / stats.totalDevices) * 50 +
+          (stats.activeLinks / stats.totalLinks) * 30 +
+          ((10 - alerts.length) / 10) * 20) *
+          100
+      )
+    )
   )
 
-  // Mock timeline events
-  const timelineEvents: TimelineEvent[] = [
-    {
-      id: "1",
-      title: "Device Online",
-      description: "Switch-Core-1 connected to controller",
-      timestamp: new Date(Date.now() - 5 * 60000),
-      type: "success",
-      device: "Switch-Core-1",
-    },
-    {
-      id: "2",
-      title: "Link Down",
-      description: "Connection lost between Switch-1 and Router-1",
-      timestamp: new Date(Date.now() - 15 * 60000),
-      type: "error",
-      device: "Switch-1",
-    },
-    {
-      id: "3",
-      title: "Configuration Applied",
-      description: "Flow rules updated on Switch-2",
-      timestamp: new Date(Date.now() - 1 * 3600000),
-      type: "info",
-      device: "Switch-2",
-    },
-    {
-      id: "4",
-      title: "High CPU Usage",
-      description: "CPU usage on Router-1 exceeded 85%",
-      timestamp: new Date(Date.now() - 2 * 3600000),
-      type: "warning",
-      device: "Router-1",
-    },
-    {
-      id: "5",
-      title: "Sync Completed",
-      description: "Network topology synchronized",
-      timestamp: new Date(Date.now() - 4 * 3600000),
-      type: "success",
-      device: "System",
-    },
-  ]
-
-  const handleNodeClick = (nodeId: string) => {
-    setSelectedNode(nodeId)
-  }
+  const selectedNodeDetails = nodes.find((node) => node.id === selectedNode)
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950">
       <Navigation />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header Section */}
-        <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                SDN Network Dashboard
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <section className="mb-8 rounded-3xl border border-gray-200 bg-gradient-to-br from-slate-950 via-cyan-950 to-slate-900 p-6 text-white shadow-xl sm:p-8">
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-3xl">
+              <div className="mb-4 flex flex-wrap items-center gap-2">
+                <Badge className="border-cyan-400/20 bg-cyan-400/10 text-cyan-200">
+                  Live Dashboard
+                </Badge>
+                <Badge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
+                  ONOS Ready
+                </Badge>
+              </div>
+
+              <h1 className="mb-3 text-4xl font-bold tracking-tight sm:text-5xl">
+                Centralized SDN Supervision
               </h1>
-              <p className="text-gray-600 dark:text-gray-400 flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                Real-time network monitoring • Last updated:{" "}
-                {timestamp.toLocaleTimeString()}
+              <p className="max-w-2xl text-sm text-slate-300 sm:text-base">
+                Monitor topology, inspect device health, review active flows, and prepare the platform
+                for backend, ONOS, and PostgreSQL integration.
               </p>
+
+              <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+                  <div className="mb-2 flex items-center gap-2 text-cyan-200">
+                    <Activity className="h-4 w-4" />
+                    <span className="text-xs uppercase tracking-[0.25em]">Refresh</span>
+                  </div>
+                  <p className="text-lg font-semibold">{timestamp.toLocaleTimeString()}</p>
+                  <p className="mt-1 text-xs text-slate-400">Dashboard updated every 5 seconds</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+                  <div className="mb-2 flex items-center gap-2 text-emerald-200">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className="text-xs uppercase tracking-[0.25em]">Controller</span>
+                  </div>
+                  <p className="text-lg font-semibold">Connected</p>
+                  <p className="mt-1 text-xs text-slate-400">ONOS v2.8.1 local environment</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
+                  <div className="mb-2 flex items-center gap-2 text-amber-200">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span className="text-xs uppercase tracking-[0.25em]">Focus</span>
+                  </div>
+                  <p className="text-lg font-semibold">
+                    {alerts.length > 0 ? `${alerts.length} alerts open` : "Stable network"}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    {offlineDevices > 0 ? `${offlineDevices} device(s) need attention` : "No offline devices detected"}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {/* Health Score */}
-            <div className="md:text-right">
-              <HealthScoreCircle score={healthScore} label="Overall Health" size="md" />
+            <div className="flex flex-col items-start gap-4 rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur lg:min-w-[280px]">
+              <HealthScoreCircle score={healthScore} label="Network Health" size="md" />
+              <div className="text-sm text-slate-300">
+                <p className="font-semibold text-white">Operational Summary</p>
+                <p className="mt-2">
+                  {stats.activeDevices}/{stats.totalDevices} devices online, {stats.activeLinks}/{stats.totalLinks} links healthy.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
+                  <Link href="/topology">
+                    Open Topology
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" className="border-white/20 bg-transparent text-white hover:bg-white/10">
+                  <Link href="/configuration">Review Settings</Link>
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
 
-        {/* Quick Actions */}
         <div className="mb-8">
-          <QuickActions />
+          <QuickActions title="Operations Shortcuts" />
         </div>
 
-        {/* KPI Cards Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <section className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <KPICard
-            title="Network Devices"
+            title="Managed Devices"
             value={stats.activeDevices}
             unit={`/ ${stats.totalDevices}`}
             status={stats.activeDevices === stats.totalDevices ? "healthy" : "warning"}
             trend={5}
             icon={<Network className="h-5 w-5" />}
-            subtitle="Active switches & routers"
+            subtitle="Switches and routers under supervision"
           />
-
           <KPICard
-            title="Active Links"
+            title="Operational Links"
             value={stats.activeLinks}
             unit={`/ ${stats.totalLinks}`}
             status={stats.activeLinks === stats.totalLinks ? "healthy" : "warning"}
             trend={-2}
             icon={<Zap className="h-5 w-5" />}
-            subtitle="Network connections"
+            subtitle="Inter-device connectivity state"
           />
-
           <KPICard
-            title="Flow Rules"
+            title="Active Flow Rules"
             value={stats.activeFlows}
             unit="rules"
             status="healthy"
             trend={12}
             icon={<Activity className="h-5 w-5" />}
-            subtitle="Active OpenFlow rules"
+            subtitle="Policies prepared for forwarding control"
           />
-
           <KPICard
-            title="Alerts"
+            title="Open Alerts"
             value={alerts.length}
             unit={alerts.length > 0 ? "active" : "none"}
-            status={
-              alerts.length === 0
-                ? "healthy"
-                : alerts.length < 3
-                  ? "warning"
-                  : "critical"
-            }
+            status={warningLevel}
             trend={-3}
             icon={<AlertCircle className="h-5 w-5" />}
-            subtitle="System notifications"
+            subtitle="Current incidents requiring attention"
           />
-        </div>
+        </section>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Topology Map */}
-          <div className="lg:col-span-2">
-            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Wifi className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-                  Network Topology
-                </h2>
+        <section className="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-3">
+          <div className="space-y-8 xl:col-span-2">
+            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
+                    <Wifi className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                    Topology Snapshot
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Interactive view of the currently discovered SDN infrastructure.
+                  </p>
+                </div>
                 <span className="text-xs text-gray-500 dark:text-gray-400">
                   {nodes.length} nodes • {edges.length} links
                 </span>
               </div>
 
               {topologyLoading ? (
-                <div className="aspect-video bg-gray-100 dark:bg-gray-800 rounded flex items-center justify-center">
+                <div className="flex aspect-video items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800">
                   <p className="text-gray-500 dark:text-gray-400">Loading topology...</p>
                 </div>
               ) : (
@@ -197,77 +242,110 @@ export default function DashboardPage() {
                   nodes={nodes}
                   edges={edges}
                   selectedNode={selectedNode}
-                  onNodeClick={handleNodeClick}
+                  onNodeClick={setSelectedNode}
                 />
               )}
 
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
-                <Link
-                  href="/topology"
-                  className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
-                >
-                  View Full Topology →
-                </Link>
+              <div className="mt-5 grid grid-cols-1 gap-4 border-t border-gray-200 pt-5 dark:border-gray-800 md:grid-cols-2">
+                <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-950">
+                  <p className="mb-1 text-sm font-semibold text-gray-900 dark:text-white">Selected node</p>
+                  {selectedNodeDetails ? (
+                    <>
+                      <p className="font-mono text-sm text-cyan-600 dark:text-cyan-400">{selectedNodeDetails.id}</p>
+                      <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                        Type: {selectedNodeDetails.type} • Status:{" "}
+                        {selectedNodeDetails.available ? "active" : "inactive"}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Click a node to inspect its summary from the dashboard.
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-end justify-between rounded-2xl bg-gray-50 p-4 dark:bg-gray-950">
+                  <div>
+                    <p className="mb-1 text-sm font-semibold text-gray-900 dark:text-white">Topology workspace</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Open the dedicated page for a larger map and detailed interactions.
+                    </p>
+                  </div>
+                  <Button asChild variant="ghost" className="text-cyan-600 hover:text-cyan-500 dark:text-cyan-400">
+                    <Link href="/topology">Open</Link>
+                  </Button>
+                </div>
               </div>
             </div>
+
+            <TimelineEvents events={timelineEvents} title="Network Activity Timeline" limit={4} />
           </div>
 
-          {/* Alerts Section */}
-          <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 p-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-4">
+          <div className="space-y-8">
+            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <h2 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
                 <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                System Alerts
+                Alert Overview
               </h2>
 
               {alertsLoading ? (
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Loading alerts...</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Loading alerts...</p>
               ) : alerts.length === 0 ? (
-                <div className="text-center py-8">
-                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900 mb-3">
+                <div className="py-8 text-center">
+                  <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900">
                     <Shield className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                   </div>
-                  <p className="text-gray-600 dark:text-gray-400 font-medium">No alerts</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-500">System is healthy</p>
+                  <p className="font-medium text-gray-700 dark:text-gray-300">No active alerts</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">The monitored environment is stable right now.</p>
                 </div>
               ) : (
                 <AlertList alerts={alerts} limit={5} />
               )}
 
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
+              <div className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-800">
                 <Link
                   href="/alerts"
-                  className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline font-medium"
+                  className="text-sm font-medium text-cyan-600 hover:underline dark:text-cyan-400"
                 >
-                  View All Alerts →
+                  View all alerts →
                 </Link>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Timeline Events */}
-        <div className="mt-8">
-          <TimelineEvents events={timelineEvents} limit={5} />
-        </div>
+            <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+              <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">Platform Summary</h2>
+              <div className="space-y-4 text-sm">
+                <div className="flex items-start gap-3 rounded-xl bg-gray-50 p-4 dark:bg-gray-950">
+                  <Clock className="mt-0.5 h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">Auto refresh active</p>
+                    <p className="text-gray-500 dark:text-gray-400">Dashboard polling and visual refresh are enabled for live demos.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-xl bg-gray-50 p-4 dark:bg-gray-950">
+                  <Wifi className="mt-0.5 h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">Controller synchronization</p>
+                    <p className="text-gray-500 dark:text-gray-400">Frontend is prepared to consume ONOS-backed data through the future API layer.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-xl bg-gray-50 p-4 dark:bg-gray-950">
+                  <TrendingUp className="mt-0.5 h-4 w-4 text-violet-600 dark:text-violet-400" />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">Integration roadmap</p>
+                    <p className="text-gray-500 dark:text-gray-400">Next phases will connect backend routes, ONOS endpoints, and PostgreSQL history.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-        {/* Footer Info */}
-        <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-gray-600 dark:text-gray-400">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              <span>Auto-refresh enabled • Updates every 5 seconds</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Wifi className="h-4 w-4" />
-              <span>Connected to ONOS Controller v2.8.1</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              <span>Uptime: 45 days, 3 hours</span>
+            <div className="rounded-2xl border border-cyan-200 bg-cyan-50/80 p-6 shadow-sm dark:border-cyan-900/40 dark:bg-cyan-950/20">
+              <p className="text-sm font-semibold text-cyan-700 dark:text-cyan-300">Frontend Milestone</p>
+              <p className="mt-2 text-sm text-cyan-600 dark:text-cyan-400">
+                This dashboard is now positioned as the main supervision entry point for the SDN platform.
+              </p>
             </div>
           </div>
-        </div>
+        </section>
       </main>
     </div>
   )

@@ -76,7 +76,11 @@ web_modules/
 
 # Next.js build output
 .next
+.next-stale-*/
 out
+
+# Local dev diagnostics
+.codex-dev.err
 
 # Nuxt.js build / generate output
 .nuxt

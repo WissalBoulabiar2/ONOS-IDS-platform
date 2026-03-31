@@ -5,10 +5,10 @@ import type React from "react"
 import Navigation from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Eye, EyeOff, ArrowRight, Shield } from "lucide-react"
+import { Activity, ArrowRight, Eye, EyeOff, Lock, Server, Shield } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 
@@ -20,7 +20,6 @@ export default function LoginPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle login logic here
     console.log("Login attempt:", { email, password, rememberMe })
   }
 
@@ -28,28 +27,30 @@ export default function LoginPage() {
     <div className="min-h-screen bg-white dark:bg-gray-950">
       <Navigation />
 
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 dark:from-gray-900 to-white dark:to-gray-950 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          {/* Header */}
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-white px-4 py-12 dark:from-gray-900 dark:to-gray-950 sm:px-6 lg:px-8">
+        <div className="w-full max-w-md space-y-8">
           <div className="text-center">
-            <div className="mx-auto h-16 w-16 bg-cyan-100 rounded-full flex items-center justify-center mb-6">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-cyan-100">
               <Shield className="h-8 w-8 text-cyan-600" />
             </div>
-            <h2 className="text-3xl font-serif font-black text-gray-900 dark:text-white">SDN Network Control</h2>
-            <p className="mt-2 text-gray-600 dark:text-gray-400 font-sans">Sign in to manage your network infrastructure</p>
+            <h2 className="text-3xl font-serif font-black text-gray-900 dark:text-white">SDN Control Access</h2>
+            <p className="mt-2 font-sans text-gray-600 dark:text-gray-400">
+              Sign in to supervise topology, devices, flows, and network alerts.
+            </p>
           </div>
 
-          {/* Login Form */}
           <Card className="border-0 shadow-xl">
-            <CardHeader className="text-center pb-4">
-              <CardTitle className="text-2xl font-serif font-bold">Sign In</CardTitle>
-              <CardDescription className="font-sans">Enter your credentials to access your account</CardDescription>
+            <CardHeader className="pb-4 text-center">
+              <CardTitle className="text-2xl font-serif font-bold">Operator Login</CardTitle>
+              <CardDescription className="font-sans">
+                Authenticate to access the centralized SDN dashboard.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300 font-sans">
-                    User
+                  <Label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Email or username
                   </Label>
                   <Input
                     id="email"
@@ -59,13 +60,13 @@ export default function LoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="appearance-none relative block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 dark:focus:ring-cyan-500 dark:focus:border-cyan-500 focus:z-10 sm:text-sm font-sans dark:bg-gray-800"
-                    placeholder="Enter your email"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-3 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+                    placeholder="admin@sdn.local"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium text-gray-700 dark:text-gray-300 font-sans">
+                  <Label htmlFor="password" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Password
                   </Label>
                   <div className="relative">
@@ -77,12 +78,12 @@ export default function LoginPage() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="appearance-none relative block w-full px-3 py-3 pr-10 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 dark:focus:ring-cyan-500 dark:focus:border-cyan-500 focus:z-10 sm:text-sm font-sans dark:bg-gray-800"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-3 pr-10 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
                       placeholder="Enter your password"
                     />
                     <button
                       type="button"
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                      className="absolute inset-y-0 right-0 flex items-center pr-3"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? (
@@ -101,14 +102,14 @@ export default function LoginPage() {
                       checked={rememberMe}
                       onCheckedChange={(checked) => setRememberMe(checked as boolean)}
                     />
-                    <Label htmlFor="remember-me" className="text-sm text-gray-600 dark:text-gray-400 font-sans">
-                      Remember me
+                    <Label htmlFor="remember-me" className="text-sm text-gray-600 dark:text-gray-400">
+                      Keep session active
                     </Label>
                   </div>
 
                   <Link
                     href="/forgot-password"
-                    className="text-sm text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 font-sans font-medium"
+                    className="text-sm font-medium text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300"
                   >
                     Forgot password?
                   </Link>
@@ -116,7 +117,7 @@ export default function LoginPage() {
 
                 <Button
                   type="submit"
-                  className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 font-sans"
+                  className="w-full rounded-lg bg-cyan-600 px-4 py-3 text-sm font-medium text-white hover:bg-cyan-700"
                 >
                   Sign In
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -129,7 +130,7 @@ export default function LoginPage() {
                     <div className="w-full border-t border-gray-300" />
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-white text-gray-500 font-sans">Don't have an account?</span>
+                    <span className="bg-white px-2 text-gray-500">Need a new account?</span>
                   </div>
                 </div>
 
@@ -137,9 +138,9 @@ export default function LoginPage() {
                   <Link href="/register">
                     <Button
                       variant="outline"
-                      className="w-full border-cyan-600 text-cyan-600 hover:bg-cyan-50 bg-transparent font-sans"
+                      className="w-full border-cyan-600 bg-transparent text-cyan-600 hover:bg-cyan-50"
                     >
-                      Create New Account
+                      Create Operator Account
                     </Button>
                   </Link>
                 </div>
@@ -147,92 +148,83 @@ export default function LoginPage() {
             </CardContent>
           </Card>
 
-          {/* Test Credentials */}
+          <div className="grid grid-cols-1 gap-3 text-left sm:grid-cols-3">
+            <div className="rounded-lg border border-gray-200 bg-white/80 p-3 dark:border-gray-800 dark:bg-gray-900/80">
+              <div className="mb-2 flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
+                <Server className="h-4 w-4" />
+                <span className="text-xs font-semibold uppercase tracking-wide">Controller</span>
+              </div>
+              <p className="text-sm text-gray-700 dark:text-gray-300">ONOS local instance</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-white/80 p-3 dark:border-gray-800 dark:bg-gray-900/80">
+              <div className="mb-2 flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
+                <Activity className="h-4 w-4" />
+                <span className="text-xs font-semibold uppercase tracking-wide">Mode</span>
+              </div>
+              <p className="text-sm text-gray-700 dark:text-gray-300">Network supervision</p>
+            </div>
+            <div className="rounded-lg border border-gray-200 bg-white/80 p-3 dark:border-gray-800 dark:bg-gray-900/80">
+              <div className="mb-2 flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
+                <Lock className="h-4 w-4" />
+                <span className="text-xs font-semibold uppercase tracking-wide">Access</span>
+              </div>
+              <p className="text-sm text-gray-700 dark:text-gray-300">Admin and operator roles</p>
+            </div>
+          </div>
+
           <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400 font-sans">
-              <strong>Test Account:</strong><br/>
+            <p className="text-xs font-sans text-gray-500 dark:text-gray-400">
+              <strong>Test Account:</strong>
+              <br />
               Email: admin@sdn.local | Password: admin123
             </p>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 dark:bg-black text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <footer className="bg-gray-900 py-16 text-white dark:bg-black">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
             <div>
-              <h3 className="text-2xl font-serif font-black text-cyan-400 mb-4">SDN Platform</h3>
-              <p className="text-gray-400 font-sans mb-4">
-                Centralized network management based on ONOS controller. Control, monitor, and configure your Software-Defined Network infrastructure.
+              <h3 className="mb-4 text-2xl font-serif font-black text-cyan-400">SDN Platform</h3>
+              <p className="mb-4 font-sans text-gray-400">
+                Centralized supervision and configuration platform for software-defined networks based on ONOS.
               </p>
-              <div className="text-sm text-gray-400 font-sans">
+              <div className="text-sm font-sans text-gray-400">
                 <p>Open Network Operating System (ONOS)</p>
                 <p>Version: 2.8.1</p>
               </div>
             </div>
             <div>
-              <h4 className="text-lg font-serif font-bold mb-4">Services</h4>
-              <ul className="space-y-2 text-gray-400 font-sans">
-                <li>
-                  <Link href="/services/portfolio-management" className="hover:text-cyan-400 transition-colors">
-                    Portfolio Management
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/services/wealth-planning" className="hover:text-cyan-400 transition-colors">
-                    Wealth Planning
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/services/risk-assessment" className="hover:text-cyan-400 transition-colors">
-                    Risk Assessment
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/services/tax-optimization" className="hover:text-cyan-400 transition-colors">
-                    Tax Optimization
-                  </Link>
-                </li>
+              <h4 className="mb-4 text-lg font-serif font-bold">Platform</h4>
+              <ul className="space-y-2 font-sans text-gray-400">
+                <li><Link href="/" className="transition-colors hover:text-cyan-400">Dashboard</Link></li>
+                <li><Link href="/topology" className="transition-colors hover:text-cyan-400">Topology</Link></li>
+                <li><Link href="/devices" className="transition-colors hover:text-cyan-400">Devices</Link></li>
+                <li><Link href="/flows" className="transition-colors hover:text-cyan-400">Flow Rules</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-lg font-serif font-bold mb-4">Company</h4>
-              <ul className="space-y-2 text-gray-400 font-sans">
-                <li>
-                  <Link href="/about" className="hover:text-cyan-400 transition-colors">
-                    About Us
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/about#team" className="hover:text-cyan-400 transition-colors">
-                    Our Team
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="hover:text-cyan-400 transition-colors">
-                    Careers
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/contact" className="hover:text-cyan-400 transition-colors">
-                    Contact
-                  </Link>
-                </li>
+              <h4 className="mb-4 text-lg font-serif font-bold">Monitoring</h4>
+              <ul className="space-y-2 font-sans text-gray-400">
+                <li><Link href="/alerts" className="transition-colors hover:text-cyan-400">Active Alerts</Link></li>
+                <li><Link href="/configuration" className="transition-colors hover:text-cyan-400">Controller Settings</Link></li>
+                <li><Link href="/login" className="transition-colors hover:text-cyan-400">Access Control</Link></li>
+                <li><Link href="/forgot-password" className="transition-colors hover:text-cyan-400">Password Recovery</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="text-lg font-serif font-bold mb-4">Contact Info</h4>
-              <div className="space-y-2 text-gray-400 font-sans">
-                <p>📧 info@pmsinvestment.com</p>
-                <p>📞 +91 98765 43210</p>
-                <p>📍 Mumbai, Maharashtra</p>
+              <h4 className="mb-4 text-lg font-serif font-bold">Environment</h4>
+              <div className="space-y-2 font-sans text-gray-400">
+                <p>Frontend: Next.js control center</p>
+                <p>Backend: ONOS proxy API</p>
+                <p>Mode: Local development lab</p>
               </div>
             </div>
           </div>
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center">
-            <p className="text-gray-400 font-sans">
-              © 2024 SDN Platform. Open-source network management solution based on ONOS Controller.
+          <div className="mt-12 border-t border-gray-800 pt-8 text-center">
+            <p className="font-sans text-gray-400">
+              © 2024 SDN Platform. Centralized SDN supervision interface built for ONOS-based environments.
             </p>
           </div>
         </div>
