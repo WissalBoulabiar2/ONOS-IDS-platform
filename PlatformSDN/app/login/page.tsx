@@ -25,18 +25,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white dark:bg-gray-950">
       <Navigation />
 
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 dark:from-gray-900 to-white dark:to-gray-950 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
           {/* Header */}
           <div className="text-center">
             <div className="mx-auto h-16 w-16 bg-cyan-100 rounded-full flex items-center justify-center mb-6">
               <Shield className="h-8 w-8 text-cyan-600" />
             </div>
-            <h2 className="text-3xl font-serif font-black text-gray-900">Welcome Back</h2>
-            <p className="mt-2 text-gray-600 font-sans">Sign in to access your investment portfolio</p>
+            <h2 className="text-3xl font-serif font-black text-gray-900 dark:text-white">SDN Network Control</h2>
+            <p className="mt-2 text-gray-600 dark:text-gray-400 font-sans">Sign in to manage your network infrastructure</p>
           </div>
 
           {/* Login Form */}
@@ -48,8 +48,8 @@ export default function LoginPage() {
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700 font-sans">
-                    Email Address
+                  <Label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300 font-sans">
+                    User
                   </Label>
                   <Input
                     id="email"
@@ -59,13 +59,13 @@ export default function LoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="appearance-none relative block w-full px-3 py-3 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 focus:z-10 sm:text-sm font-sans"
+                    className="appearance-none relative block w-full px-3 py-3 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 dark:focus:ring-cyan-500 dark:focus:border-cyan-500 focus:z-10 sm:text-sm font-sans dark:bg-gray-800"
                     placeholder="Enter your email"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium text-gray-700 font-sans">
+                  <Label htmlFor="password" className="text-sm font-medium text-gray-700 dark:text-gray-300 font-sans">
                     Password
                   </Label>
                   <div className="relative">
@@ -77,7 +77,7 @@ export default function LoginPage() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="appearance-none relative block w-full px-3 py-3 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 focus:z-10 sm:text-sm font-sans"
+                      className="appearance-none relative block w-full px-3 py-3 pr-10 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 dark:focus:ring-cyan-500 dark:focus:border-cyan-500 focus:z-10 sm:text-sm font-sans dark:bg-gray-800"
                       placeholder="Enter your password"
                     />
                     <button
@@ -101,14 +101,14 @@ export default function LoginPage() {
                       checked={rememberMe}
                       onCheckedChange={(checked) => setRememberMe(checked as boolean)}
                     />
-                    <Label htmlFor="remember-me" className="text-sm text-gray-600 font-sans">
+                    <Label htmlFor="remember-me" className="text-sm text-gray-600 dark:text-gray-400 font-sans">
                       Remember me
                     </Label>
                   </div>
 
                   <Link
                     href="/forgot-password"
-                    className="text-sm text-cyan-600 hover:text-cyan-700 font-sans font-medium"
+                    className="text-sm text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 font-sans font-medium"
                   >
                     Forgot password?
                   </Link>
@@ -147,27 +147,28 @@ export default function LoginPage() {
             </CardContent>
           </Card>
 
-          {/* Security Notice */}
+          {/* Test Credentials */}
           <div className="text-center">
-            <p className="text-xs text-gray-500 font-sans">
-              Your data is protected with bank-level security. We never share your personal information.
+            <p className="text-xs text-gray-500 dark:text-gray-400 font-sans">
+              <strong>Test Account:</strong><br/>
+              Email: admin@sdn.local | Password: admin123
             </p>
           </div>
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-16">
+      <footer className="bg-gray-900 dark:bg-black text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-2xl font-serif font-black text-cyan-400 mb-4">PMS Investment Services</h3>
+              <h3 className="text-2xl font-serif font-black text-cyan-400 mb-4">SDN Platform</h3>
               <p className="text-gray-400 font-sans mb-4">
-                Empowering your financial future with expertise, transparency, and unwavering trust.
+                Centralized network management based on ONOS controller. Control, monitor, and configure your Software-Defined Network infrastructure.
               </p>
               <div className="text-sm text-gray-400 font-sans">
-                <p>SEBI Registered Investment Advisor</p>
-                <p>Registration No: INA000012345</p>
+                <p>Open Network Operating System (ONOS)</p>
+                <p>Version: 2.8.1</p>
               </div>
             </div>
             <div>
@@ -231,7 +232,7 @@ export default function LoginPage() {
           </div>
           <div className="border-t border-gray-800 mt-12 pt-8 text-center">
             <p className="text-gray-400 font-sans">
-              © 2024 PMS Investment Services. All rights reserved by <a href="https://codescandy.com/" target="_blank">CodesCandy</a>. Distributed by <a href="https://themewagon.com" target="_blank">ThemeWagon</a>.
+              © 2024 SDN Platform. Open-source network management solution based on ONOS Controller.
             </p>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Montserrat, Open_Sans } from "next/font/google"
+import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
 const montserrat = Montserrat({
@@ -18,9 +19,9 @@ const openSans = Open_Sans({
 })
 
 export const metadata: Metadata = {
-  title: "PMS Investment Services - Empowering Your Financial Future",
+  title: "SDN Platform - Network Management & Control",
   description:
-    "Tailored investment strategies for discerning investors. Professional portfolio management services with expertise and trust.",
+    "Centralized SDN platform for network management based on ONOS controller. Real-time monitoring, topology visualization, and network configuration.",
   generator: "v0.app",
 }
 
@@ -30,8 +31,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${montserrat.variable} ${openSans.variable} antialiased`}>
-      <body>{children}</body>
+    <html lang="en" className={`${montserrat.variable} ${openSans.variable} antialiased`} suppressHydrationWarning>
+      <body>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+          {children}
+        </ThemeProvider>
+      </body>
     </html>
   )
 }
