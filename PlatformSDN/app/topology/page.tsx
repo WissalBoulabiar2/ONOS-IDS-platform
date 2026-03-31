@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { TopologyMap } from "@/components/TopologyMap"
 import { useTopology, useRealtimeUpdates } from "@/hooks/sdn-hooks"
+import { useExportPDF } from "@/hooks/useExportPDF"
 import {
   Activity,
   ArrowRight,
@@ -20,12 +21,17 @@ import {
   Server,
   Square,
   Wifi,
+  Download,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react"
 
 export default function TopologyPage() {
   const { nodes, edges, loading } = useTopology()
   const timestamp = useRealtimeUpdates(5000)
   const [selectedNode, setSelectedNode] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const { exportToPDF } = useExportPDF()
 
   const selectedNodeDetails = useMemo(
     () => nodes.find((node) => node.id === selectedNode) ?? null,
@@ -36,11 +42,22 @@ export default function TopologyPage() {
   const inactiveNodes = nodes.length - activeNodes
   const switchCount = nodes.filter((node) => node.type === "switch").length
 
+  const handleExportTopology = async () => {
+    try {
+      setExporting(true)
+      await exportToPDF("topology-container", `SDN-Topology-${new Date().toISOString().split("T")[0]}.pdf`)
+    } catch (error) {
+      console.error("Failed to export topology:", error)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-white">
       <Navigation />
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main id="topology-container" className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <section className="mb-8 rounded-3xl border border-gray-200 bg-gradient-to-br from-slate-950 via-cyan-950 to-slate-900 p-6 text-white shadow-xl sm:p-8">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
@@ -67,12 +84,20 @@ export default function TopologyPage() {
               <p className="mt-2 text-sm text-slate-300">
                 Topology data is refreshed automatically while the frontend is running.
               </p>
-              <div className="mt-4">
+              <div className="mt-4 flex flex-col gap-2">
                 <Button asChild className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
                   <Link href="/devices">
                     Inspect Devices
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
+                </Button>
+                <Button
+                  onClick={handleExportTopology}
+                  disabled={exporting}
+                  className="bg-emerald-600 text-white hover:bg-emerald-700"
+                >
+                  <Download className={`mr-2 h-4 w-4 ${exporting ? "animate-spin" : ""}`} />
+                  {exporting ? "Exporting..." : "Export PDF"}
                 </Button>
               </div>
             </div>

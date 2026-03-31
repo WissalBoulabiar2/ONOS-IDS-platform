@@ -8,8 +8,8 @@ import { DeviceDetailsModal } from "@/components/DeviceDetailsModal"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { useDevices } from "@/hooks/sdn-hooks"
-import { getDevicePorts } from "@/lib/mock-data"
+import { mockDevices, getDevicePorts as getMockDevicePorts } from "@/lib/mock-data"
+import { ApiDevice, sdnApi } from "@/services/api"
 import {
   AlertTriangle,
   ArrowRight,
@@ -42,47 +42,112 @@ interface Port {
 }
 
 export default function DevicesPage() {
-  const { devices: hookDevices, loading } = useDevices()
   const [devices, setDevices] = useState<Device[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [source, setSource] = useState<"api" | "mock">("api")
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null)
   const [ports, setPorts] = useState<Port[]>([])
   const [showModal, setShowModal] = useState(false)
   const [portsLoading, setPortsLoading] = useState(false)
 
-  useEffect(() => {
-    if (hookDevices && hookDevices.length > 0) {
-      const formattedDevices: Device[] = hookDevices.map((d: any) => ({
-        id: d.id || "unknown",
-        type: d.type || "SWITCH",
-        available: d.status ? d.status === "active" : d.available !== false,
-        name: d.name || d.id || "Unnamed device",
-        manufacturer: d.manufacturer || "Unknown",
-        serialNumber: d.serialNumber || "N/A",
-        portCount: d.port_count ?? getDevicePorts(d.id || "").length,
-      }))
-      setDevices(formattedDevices)
+  const normalizeType = (type?: string) => {
+    const normalized = (type || "switch").toLowerCase()
+    return normalized === "switch" || normalized === "router" || normalized === "host"
+      ? normalized
+      : "switch"
+  }
+
+  const mapApiDevice = (device: ApiDevice, portCount?: number): Device => {
+    const shortId = device.id.split(":").pop() || device.id
+
+    return {
+      id: device.id || "unknown",
+      type: normalizeType(device.type),
+      available: device.available !== false,
+      name: `Device-${shortId}`,
+      manufacturer: device.manufacturer || "Unknown",
+      serialNumber: device.serialNumber || "N/A",
+      portCount,
     }
-  }, [hookDevices])
+  }
+
+  const mapMockDevices = (): Device[] =>
+    mockDevices.map((device) => ({
+      id: device.id,
+      type: device.type,
+      available: device.status === "active",
+      name: device.name,
+      manufacturer: device.manufacturer || "Unknown",
+      serialNumber: "N/A",
+      portCount: getMockDevicePorts(device.id).length,
+    }))
+
+  const fetchDevices = async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const data = await sdnApi.getDevices()
+      const devicesWithPorts = await Promise.all(
+        data.devices.map(async (device) => {
+          try {
+            const portData = await sdnApi.getDevicePorts(device.id)
+            return mapApiDevice(device, portData.total ?? portData.ports.length)
+          } catch {
+            return mapApiDevice(device)
+          }
+        })
+      )
+
+      setDevices(devicesWithPorts)
+      setSource("api")
+    } catch (err) {
+      setDevices(mapMockDevices())
+      setSource("mock")
+      setError(err instanceof Error ? err.message : "Unable to reach backend devices API")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchDevices()
+  }, [])
 
   const handleSelectDevice = async (device: Device) => {
     setSelectedDevice(device)
+    setShowModal(true)
     setPortsLoading(true)
 
-    await new Promise((resolve) => setTimeout(resolve, 500))
-
-    const mockPorts = getDevicePorts(device.id).map((port) => ({
-      portNumber: port.portNumber,
-      enabled: port.status === "enabled",
-      live: port.status === "enabled",
-      rxBytes: port.rxBytes,
-      txBytes: port.txBytes,
-      rxPackets: port.rxPackets,
-      txPackets: port.txPackets,
-    }))
-
-    setPorts(mockPorts)
-    setPortsLoading(false)
-    setShowModal(true)
+    try {
+      const data = await sdnApi.getDevicePorts(device.id)
+      setPorts(
+        data.ports.map((port) => ({
+          portNumber: port.portNumber,
+          enabled: port.enabled,
+          live: port.live,
+          rxBytes: port.rxBytes,
+          txBytes: port.txBytes,
+          rxPackets: port.rxPackets,
+          txPackets: port.txPackets,
+        }))
+      )
+    } catch {
+      setPorts(
+        getMockDevicePorts(device.id).map((port) => ({
+          portNumber: port.portNumber,
+          enabled: port.status === "enabled",
+          live: port.status === "enabled",
+          rxBytes: port.rxBytes,
+          txBytes: port.txBytes,
+          rxPackets: port.rxPackets,
+          txPackets: port.txPackets,
+        }))
+      )
+    } finally {
+      setPortsLoading(false)
+    }
   }
 
   const handleAction = (action: string, device: Device) => {
@@ -90,7 +155,7 @@ export default function DevicesPage() {
   }
 
   const handleRefresh = () => {
-    console.log("Refreshing devices...")
+    fetchDevices()
   }
 
   const onlineCount = devices.filter((d) => d.available).length
@@ -135,7 +200,9 @@ export default function DevicesPage() {
                 {offlineCount > 0 ? `${offlineCount} device(s) offline` : "All discovered devices reachable"}
               </p>
               <p className="mt-2 text-sm text-slate-300">
-                Use the detailed modal to validate port activity before connecting real backend endpoints.
+                {source === "api"
+                  ? "Live ONOS inventory is active through the backend API."
+                  : "Backend unavailable, fallback inventory is shown from local mock data."}
               </p>
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
@@ -156,6 +223,18 @@ export default function DevicesPage() {
             </div>
           </div>
         </section>
+
+        {error && (
+          <div className="mb-8 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
+            <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+            <div>
+              <h3 className="font-semibold text-amber-900 dark:text-amber-200">Backend fallback active</h3>
+              <p className="text-sm text-amber-800 dark:text-amber-300">
+                {error}. The page is showing mock data until the API becomes available again.
+              </p>
+            </div>
+          </div>
+        )}
 
         <section className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
@@ -179,7 +258,7 @@ export default function DevicesPage() {
               </div>
               <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{onlineCount}</p>
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Devices currently available in the mock environment
+                Devices currently reachable in the active inventory source
               </p>
             </CardContent>
           </Card>
@@ -288,7 +367,11 @@ export default function DevicesPage() {
                 <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">Operational Notes</h2>
                 <p className="mb-3">Switch-class devices discovered: {coreDevices}</p>
                 <p className="mb-3">Offline devices should later trigger backend-driven alerts and incident workflows.</p>
-                <p>The current modal already prepares the UI for future ONOS-backed port statistics.</p>
+                <p>
+                  {source === "api"
+                    ? "Port statistics in the modal now come from the backend when available."
+                    : "The page is ready, but currently displaying mock fallback data."}
+                </p>
               </CardContent>
             </Card>
           </div>

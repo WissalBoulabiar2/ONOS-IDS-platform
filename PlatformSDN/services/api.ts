@@ -1,22 +1,76 @@
 // API Service - Connexion au Backend SDN Platform
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
+
+export interface ApiHealthResponse {
+  status: "OK" | "DEGRADED" | "ERROR"
+  message: string
+  timestamp: string
+  onos?: {
+    connected: boolean
+    error: string | null
+    url: string
+  }
+  database?: {
+    connected: boolean
+    error: string | null
+  }
+}
+
+export interface ApiDevice {
+  id: string
+  type: string
+  available: boolean
+  manufacturer?: string
+  serialNumber?: string
+  port?: string
+}
+
+export interface ApiDevicesResponse {
+  total: number
+  source?: "database" | "onos"
+  devices: ApiDevice[]
+}
+
+export interface ApiPort {
+  portNumber: number
+  portSpeed?: string | number | null
+  enabled: boolean
+  live: boolean
+  rxBytes: number
+  txBytes: number
+  rxPackets: number
+  txPackets: number
+}
+
+export interface ApiPortsResponse {
+  deviceId: string
+  total: number
+  source?: "database" | "onos"
+  ports: ApiPort[]
+}
 
 export const sdnApi = {
   // Health Check
-  async healthCheck() {
+  async healthCheck(): Promise<ApiHealthResponse> {
     const response = await fetch(`${API_BASE_URL}/health`)
-    return response.json()
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.message || "Backend health check failed")
+    }
+
+    return data
   },
 
   // Devices
-  async getDevices() {
+  async getDevices(): Promise<ApiDevicesResponse> {
     const response = await fetch(`${API_BASE_URL}/devices`)
     if (!response.ok) throw new Error('Failed to fetch devices')
     return response.json()
   },
 
-  async getDevicePorts(deviceId: string) {
+  async getDevicePorts(deviceId: string): Promise<ApiPortsResponse> {
     const response = await fetch(`${API_BASE_URL}/devices/${deviceId}/ports`)
     if (!response.ok) throw new Error(`Failed to fetch ports for ${deviceId}`)
     return response.json()
@@ -64,7 +118,10 @@ export function useONOS() {
 
   useEffect(() => {
     sdnApi.healthCheck()
-      .then(() => setIsConnected(true))
+      .then((health) => {
+        setIsConnected(health.status !== "ERROR")
+        setError(health.status === "DEGRADED" ? health.message : null)
+      })
       .catch(err => {
         setIsConnected(false)
         setError(err.message)
