@@ -1,5 +1,19 @@
 BEGIN;
 
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(100) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'operator',
+    password_hash TEXT NOT NULL,
+    is_active BOOLEAN DEFAULT true,
+    last_login TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT users_role_check CHECK (role IN ('admin', 'operator', 'viewer'))
+);
+
 CREATE TABLE IF NOT EXISTS devices (
     id SERIAL PRIMARY KEY,
     device_id VARCHAR(255) UNIQUE NOT NULL,
@@ -108,6 +122,11 @@ CREATE TABLE IF NOT EXISTS alerts (
 CREATE INDEX IF NOT EXISTS idx_devices_device_id ON devices(device_id);
 CREATE INDEX IF NOT EXISTS idx_devices_available ON devices(available);
 CREATE INDEX IF NOT EXISTS idx_devices_last_updated ON devices(last_updated);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active);
 
 CREATE INDEX IF NOT EXISTS idx_ports_device_id ON ports(device_id);
 CREATE INDEX IF NOT EXISTS idx_ports_live ON ports(live);

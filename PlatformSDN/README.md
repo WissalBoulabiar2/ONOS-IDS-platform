@@ -1,491 +1,754 @@
 # PlatformSDN
 
-Plateforme web centralisee de supervision et de configuration SDN basee sur le controleur ONOS.
+Plateforme web de supervision, d'observabilite et d'orchestration SDN autour du controleur ONOS.
 
-Ce projet a pour objectif de fournir une interface moderne pour:
-- visualiser la topologie reseau SDN
-- surveiller les equipements, ports, liens et flow rules
-- centraliser les alertes et l'etat du reseau
-- preparer l'administration reseau via une interface web plutot que via le terminal
-- evoluer ensuite vers une integration complete avec backend, ONOS et base de donnees
+Ce README est la reference principale du projet.
 
-Le projet est actuellement dans une phase frontend avancee, avec une base backend Node.js/Express deja en place pour la connexion a ONOS.
+Regle de travail:
+- a chaque amelioration importante frontend, backend, base de donnees, auth ou integration ONOS, ce fichier doit etre mis a jour
+- quand on reprend le projet apres une pause, on recommence ici
+- avant chaque session importante, lire aussi `AGENT_PLATFORMSDN.md`
+- `AGENT_PLATFORMSDN.md` contient la vision produit cible, les routes backend a ajouter et l'ordre recommande des prochaines evolutions
 
-## 1. Vision du projet
+## 1. Etat rapide
 
-Dans une architecture SDN, le plan de controle est separe du plan de donnees. ONOS joue ici le role de controleur central, tandis que cette plateforme web agit comme couche de supervision, d'observabilite et, a terme, de configuration.
+### Ce que la plateforme fait deja
 
-L'idee est de proposer une application unique ou un administrateur peut:
-- voir l'etat global du reseau
-- afficher la topologie en temps reel
-- explorer les devices et leurs ports
-- consulter les flow rules OpenFlow
-- suivre les alertes
-- configurer des regles de flux depuis une interface claire
+- frontend Next.js 15 / React 19 avec interface SDN moderne
+- backend Express connecte a ONOS et a PostgreSQL
+- authentification JWT avec bcrypt
+- utilisateur admin par defaut cree automatiquement si PostgreSQL est disponible
+- mode degrade possible pour la demo si PostgreSQL n'est pas encore disponible
+- stockage local de developpement pour users et alerts si PostgreSQL est indisponible
+- base embarquee `pg-mem` si PostgreSQL ne peut pas demarrer sur la machine
+- panneau admin minimal pour creer des utilisateurs
+- routes frontend protegees
+- routes backend metier protegees
+- dashboard enrichi avec vue controller / cluster / applications / hosts / intents / incidents
+- chatbot frontend local modernise dans le dashboard avec widget flottant AI
+- dashboard enrichi avec runtime controller, snapshot mastership et top link hotspots
+- dashboard enrichi avec metrics controller ONOS et resume VPLS actif
+- `devices` branche au backend
+- `dashboard` branche au backend
+- `topology` branchee au backend reel
+- `flows` branchee au backend reel avec lecture, creation et suppression
+- `alerts` branchee au backend reel avec moteur de detection et historique PostgreSQL
+- `services` ajoutee pour exploiter VPLS depuis ONOS
 
-## 2. Objectifs
+### Ce qui manque encore
 
-Les objectifs principaux du projet sont:
-- centraliser la supervision du reseau SDN dans une interface web
-- simplifier l'exploitation d'ONOS
-- offrir une visualisation intuitive de la topologie
-- preparer la gestion des flux et des politiques reseau
-- introduire l'historique, les alertes et la persistance des donnees dans les prochaines iterations
+- widgets dashboard encore a ajouter: mastership, top liens charges, metrics JVM, IMR, VPLS
+- page `intent-monitor`
+- page `controller-ops`
+- ack utilisateur distinct dans `alerts`
+- WebSocket temps reel pour `alerts`
+- forgot password reel
+- changement de mot de passe
+- audit trail des connexions et actions admin
+- modularisation du backend
+- exploitation progressive de toutes les APIs ONOS avancees
 
-## 3. Etat actuel du projet
+## 2. Journal du projet
 
-### Fonctionnalites frontend deja mises en place
+### Mise a jour du 1 avril 2026
 
-- `Dashboard` avec vue globale du reseau
-- `Topology` avec carte interactive Cytoscape
-- `Devices` avec inventaire et details de devices
-- `Flows` avec vue de gestion des flow rules
-- `Alerts` avec centre de supervision des incidents
-- `Configuration` avec page de parametres SDN / ONOS
-- `Login` et `Register` revisites pour le contexte SDN
-- navigation globale refaite pour une plateforme reseau
+- ajout d'une vraie couche d'authentification
+  - login backend JWT
+  - verification du token cote backend
+  - mots de passe hashes avec bcrypt
+  - admin par defaut `admin@sdn.local / admin123`
+  - panneau admin users
+- redesign puis simplification de la page `login`
+  - ecran plus sobre, plus simple et plus corporate
+  - logo `Alliance` charge depuis `public/images/Alliance.png`
+  - logo affiche au-dessus du formulaire login
+  - suppression du lien `forgot password` dans l'ecran principal
+- `/` redirige maintenant vers `/dashboard`
+- `topology` utilise maintenant `GET /api/topology`
+- `flows` utilise maintenant:
+  - `GET /api/flows`
+  - `POST /api/flows/:deviceId`
+  - `DELETE /api/flows/:deviceId/:flowId`
+- `alerts` utilise maintenant:
+  - `GET /api/alerts`
+  - `POST /api/alerts/:id/resolve`
+- `dashboard` utilise maintenant aussi:
+  - `GET /api/dashboard/overview`
+  - `GET /api/dashboard/link-load`
+  - exploitation de `/applications/{name}/health`
+  - chatbot frontend local pour guider l'operateur
+- `dashboard/overview` expose maintenant aussi:
+  - resume runtime controller derive de `/system`
+  - snapshot `mastership` sur un echantillon de devices ONOS
+  - resume `metrics` derive de `/metrics`
+  - resume VPLS derive de `/onos/vpls`
+- le dashboard affiche maintenant aussi:
+  - runtime controller
+  - snapshot mastership
+  - top link hotspots tries par telemetrie
+  - controller metrics
+  - active VPLS services
+- le chatbot du dashboard a ete redesign en widget flottant plus moderne
+  - ouverture via une icone `AI`
+  - panneau conversationnel en overlay
+  - style glassmorphism plus moderne
+- ajout du guide produit et agent `AGENT_PLATFORMSDN.md`
+  - objectifs page par page
+  - routes backend ONOS encore a brancher
+  - priorites produit alignees pour les prochaines iterations
+- navigation amelioree
+  - suppression du doublon `Admin` / `Admin Panel`
+  - acces admin garde via l'entree `Users`
+  - navbar rendue plus responsive sur ecrans intermediaires et mobiles
+  - bande de navigation horizontale adaptee sur tablette
+- timing dashboard ameliore
+  - cycle de refresh plus stable
+  - protection contre les requetes qui se chevauchent
+  - affichage `last sync` relatif
+- `services` utilise maintenant:
+  - `GET /api/services/vpls`
+  - `POST /api/services/vpls`
+  - `DELETE /api/services/vpls/:name`
+  - `POST /api/services/vpls/:name/interfaces`
+  - `DELETE /api/services/vpls/:name/interfaces/:interfaceName`
+- le backend peut maintenant demarrer avec une BD embarquee `pg-mem` si PostgreSQL externe est indisponible
+- si PostgreSQL ne demarre pas, le backend utilise maintenant `backend/dev-store.json`
+- `README.md` devient le journal central du projet
+- verification effectuee:
+  - `npm run build` passe avec `dashboard`, `topology`, `flows`, `alerts`, `services`, `login`, `admin/users`
+  - un mode degrade de login admin est disponible si PostgreSQL n'est pas encore pret
 
-### Backend deja present
+## 3. Rapport technique vs code actuel
 
-Le backend expose deja plusieurs endpoints REST pour ONOS:
-- `GET /api/health`
-- `GET /api/devices`
-- `GET /api/topology`
-- `GET /api/flows`
-- `POST /api/flows/:deviceId`
-- `GET /api/devices/:deviceId/ports`
+Le PDF `rapport_sdn_final.pdf` reste utile comme vision cible, mais le code reel a evolue.
 
-### Limitations actuelles
+| Sujet | Rapport PDF | Repo actuel |
+| --- | --- | --- |
+| Frontend | React 18 + Vite + React Router | Next.js 15 App Router + React 19 |
+| Backend | Express + Prisma + Socket.io + node-cron | Express + `pg` + Axios + auth JWT |
+| Auth | prevue | operationnelle |
+| DB | PostgreSQL unique | PostgreSQL unique |
+| Source live | ONOS REST API | ONOS REST API |
+| UI | style Cisco / ONOS GUI | UI moderne Tailwind/Radix, login plus DNA-inspired |
 
-- une partie du frontend utilise encore des donnees mockees
-- le frontend n'est pas encore totalement branche au backend reel
-- PostgreSQL n'est pas encore integre
-- l'authentification JWT n'est pas encore implemente
-- les alertes temps reel via WebSocket ne sont pas encore branchees
-- le backend actuel reste monolithique et doit encore etre modularise
+Conclusion:
+- le rapport est la vision cible
+- ce README decrit l'etat reel du code
 
-## 4. Architecture cible
-
-L'architecture visee du projet est la suivante:
+## 4. Architecture actuelle
 
 ```text
-Utilisateur / Administrateur
-        |
-        v
-Frontend Next.js 15 + React 19
-        |
-        v
-Backend Node.js / Express
-        |
-        +--> ONOS REST API
-        |
-        +--> PostgreSQL (historique, alertes, utilisateurs, configuration)
-        |
-        +--> WebSocket / temps reel
+Utilisateur
+   |
+   v
+Frontend Next.js 15
+   |
+   v
+Backend Express
+   |
+   +--> ONOS REST API
+   |
+   +--> PostgreSQL
 ```
 
-### Role de chaque couche
+### Fonctionnement
 
-#### Frontend
+- le frontend appelle le backend securise par JWT
+- le backend lit ONOS en direct ou PostgreSQL si des donnees synchronisees existent
+- PostgreSQL sert a la fois pour l'auth locale et pour le cache / historique reseau
+- si PostgreSQL est indisponible, un mode degrade permet encore de tester l'interface avec l'admin par defaut
+- si PostgreSQL reste indisponible, un stockage local de developpement prend le relais pour:
+  - login
+  - admin users
+  - historique et resolution d'alertes
+- si Docker/PostgreSQL externe ne peut pas demarrer, le backend essaie aussi une BD embarquee `pg-mem`
 
-Le frontend fournit:
-- les dashboards de supervision
-- la visualisation topologique
-- les pages de gestion SDN
-- l'UX d'administration reseau
+## 5. Modes de donnees
 
-#### Backend
+### Mode 1 - Backend live ONOS
 
-Le backend joue le role de couche intermediaire:
-- communication avec ONOS
-- formatage des donnees
-- exposition d'une API frontend
-- futur support d'authentification, historique et alertes temps reel
+- source principale des donnees temps reel
+- utilise `axios` vers ONOS
+- la topologie live doit maintenant venir en priorite de ce mode
 
-#### ONOS
+### Mode 2 - PostgreSQL cache / historique
 
-ONOS est la source des donnees temps reel:
-- devices
-- topologie
-- liens
-- ports
-- flow rules
+- permet de servir des donnees si la base contient deja des snapshots
+- utile pour les stats, historiques et futurs rapports
+- la topologie live ne doit plus etre prioritaire sur ce mode sauf demande explicite
 
-#### Base de donnees
+### Mode 3 - Mock local
 
-La base de donnees sera utilisee pour:
-- l'historique des metriques
-- la persistance des alertes
-- les comptes utilisateurs
-- les roles
-- les configurations sauvegardees
+- encore present sur certaines pages non encore branchees
+- sert seulement de support UX temporaire
 
-## 5. Stack technique
+### Mode 4 - Local store de developpement
 
-### Frontend
+- fichier: `backend/dev-store.json`
+- active automatiquement si PostgreSQL est indisponible
+- persiste users et alerts pour continuer la demo sans DB
 
-- Next.js 15
-- React 19
-- TypeScript
-- Tailwind CSS 4
-- Radix UI
-- Lucide React
-- Cytoscape.js
-- next-themes
-- React Hook Form
-- Zod
-- Recharts
-- Zustand
+### Mode 5 - Embedded database
 
-### Backend
+- moteur: `pg-mem`
+- active automatiquement si PostgreSQL externe est indisponible
+- permet au backend de rester dans un vrai mode base de donnees meme sans Docker
 
-- Node.js
-- Express
-- Axios
-- Cors
-- Dotenv
+## 6. Pages frontend actuelles
 
-### Integrations prevues ou deja preparees
+| Route | Etat actuel | Source des donnees | Commentaire |
+| --- | --- | --- | --- |
+| `/` | redirection | `/dashboard` | suppression de l'ancien double dashboard |
+| `/dashboard` | backend live | backend + ONOS live | KPIs, charts, cluster, apps, hosts, intents, incidents, export PDF |
+| `/devices` | presque pret prod | backend + fallback mock | bonne base inventaire reseau |
+| `/topology` | backend live | ONOS direct | topologie reelle ONOS avec hosts, filtres et layouts |
+| `/flows` | backend live | backend live | GET/POST/DELETE reels vers ONOS |
+| `/alerts` | backend live | backend + PostgreSQL + ONOS derive | alertes detectees et historisees |
+| `/services` | backend live | ONOS VPLS REST | creation et gestion VPLS |
+| `/configuration` | statique | frontend | centre de config / cadrage |
+| `/login` | auth reelle | backend auth | JWT + bcrypt + design pro |
+| `/register` | UI seule | mock | a fusionner plus tard avec admin users |
+| `/forgot-password` | UI seule | mock | backend a faire |
+| `/contact` | UI seule | mock | futur support / ticketing |
+| `/admin/users` | operationnel | backend auth + DB | creation users par admin |
 
-- ONOS REST API
-- Socket.IO client
-- React Query
-- PostgreSQL
+## 7. Backend API actuelle
 
-## 6. Outils utilises
+### Auth
 
-Le projet utilise ou prepare les outils suivants:
-- Git et GitHub pour le versioning
-- GitHub Actions avec `.github/workflows/release.yml`
-- Next.js App Router
-- PostCSS avec `@tailwindcss/postcss`
-- hooks React personnalises pour la simulation des donnees SDN
-- services API dedies pour la future connexion frontend-backend
+| Route | Methode | Role |
+| --- | --- | --- |
+| `/api/auth/login` | `POST` | connexion JWT |
+| `/api/auth/me` | `GET` | profil utilisateur courant |
+| `/api/users` | `GET` | liste des users, admin seulement |
+| `/api/users` | `POST` | creation de user, admin seulement |
 
-## 7. Structure du projet
+### SDN Core
+
+| Route | Methode | Role |
+| --- | --- | --- |
+| `/api/health` | `GET` | sante backend / ONOS / DB |
+| `/api/devices` | `GET` | inventaire des devices |
+| `/api/devices/:deviceId/ports` | `GET` | ports d'un device |
+| `/api/topology` | `GET` | noeuds + liens, supporte `?source=onos|database|auto` |
+| `/api/flows` | `GET` | liste des flows |
+| `/api/flows/:deviceId` | `POST` | creation d'une flow ONOS |
+| `/api/flows/:deviceId/:flowId` | `DELETE` | suppression d'une flow ONOS |
+| `/api/alerts` | `GET` | feed d'alertes reel |
+| `/api/alerts/:id/resolve` | `POST` | resolution d'une alerte |
+| `/api/dashboard/stats` | `GET` | KPI dashboard |
+| `/api/dashboard/overview` | `GET` | vue controller, cluster, applications, hosts, intents |
+| `/api/dashboard/link-load` | `GET` | telemetrie charge lien |
+| `/api/services/vpls` | `GET` | liste VPLS |
+| `/api/services/vpls` | `POST` | creation VPLS |
+| `/api/services/vpls/:name` | `DELETE` | suppression VPLS |
+| `/api/services/vpls/:name/interfaces` | `POST` | ajout interface VPLS |
+| `/api/services/vpls/:name/interfaces/:interfaceName` | `DELETE` | suppression interface VPLS |
+| `/api/metrics/devices` | `GET` | metrics agregees par device |
+| `/api/metrics/port-history/:deviceId/:port` | `GET` | historique d'un port |
+
+### Logique actuelle
+
+- `health` et `auth/login` restent publics
+- le reste des routes `/api/*` est protege par JWT
+- les mots de passe sont hashes avec bcrypt
+- un admin par defaut est initialise au demarrage si la DB est accessible
+- pour les flows, le backend passe maintenant aussi `appId` vers ONOS
+- si PostgreSQL est indisponible:
+  - auth bascule sur `backend/dev-store.json`
+  - `GET/POST /api/users` restent utilisables
+  - `GET /api/alerts` et `POST /api/alerts/:id/resolve` restent persistants
+- les alertes sont maintenant derivees automatiquement depuis:
+  - disponibilite controller
+  - devices indisponibles
+  - liens inactifs
+  - ports enabled mais non live
+  - flows en etat pending
+
+## 8. Base PostgreSQL actuelle
+
+Tables principales:
+
+- `users`
+- `devices`
+- `ports`
+- `port_metrics`
+- `topology_links`
+- `flows`
+- `device_metrics`
+- `sync_log`
+- `alerts`
+
+### Ce que cela permet deja
+
+- auth locale securisee
+- gestion des roles `admin`, `operator`, `viewer`
+- cache d'inventaire ONOS
+- historique ports
+- historique flows
+- base du futur moteur d'alertes
+
+### Ce qui manque encore
+
+- audit des connexions
+- password reset tokens
+- historique plus riche des incidents
+- snapshots `hosts`, `groups`, `meters`, `intents`, `applications`, `cluster`
+
+## 9. Arborescence utile
 
 ```text
 PlatformSDN/
 |-- app/
-|   |-- page.tsx                  # Dashboard
-|   |-- topology/page.tsx         # Carte topologique
-|   |-- devices/page.tsx          # Inventaire reseau
-|   |-- flows/page.tsx            # Gestion des flow rules
-|   |-- alerts/page.tsx           # Centre d'alertes
-|   |-- configuration/page.tsx    # Parametres plateforme / ONOS
-|   |-- login/page.tsx            # Connexion operateur
-|   |-- register/page.tsx         # Provisioning utilisateur
-|   |-- contact/page.tsx          # Support operateur
-|   |-- forgot-password/page.tsx  # Recuperation de mot de passe
-|   |-- layout.tsx                # Layout principal
-|   |-- globals.css               # Styles globaux
-|
 |-- components/
-|   |-- navigation.tsx            # Navigation principale
-|   |-- TopologyMap.tsx           # Graphe Cytoscape
-|   |-- ui/                       # Composants UI reutilisables
-|
 |-- hooks/
-|   |-- sdn-hooks.ts              # Hooks frontend (mock / simulation)
-|
 |-- lib/
-|   |-- types.ts                  # Types metier SDN
-|   |-- mock-data.ts              # Donnees mockees
-|
 |-- services/
-|   |-- api.ts                    # Service frontend pour le backend
-|
 |-- backend/
-|   |-- server.js                 # API Express vers ONOS
-|   |-- README.md                 # Doc backend
-|
-|-- package.json
-|-- next.config.mjs
-|-- postcss.config.mjs
-|-- QUICK_START.md
+|   |-- server.js
+|   |-- .env.example
+|-- docker-compose.yml
+|-- init-db.sql
+|-- middleware.ts
 |-- README.md
 ```
 
-## 8. Pages principales du frontend
+## 10. Reprendre le projet rapidement
 
-### Dashboard
+1. Lire ce README
+2. Verifier `.env.local` et `backend/.env`
+3. Demarrer PostgreSQL
+4. Demarrer le backend
+5. Demarrer le frontend
+6. Se connecter avec l'admin par defaut
+7. Ouvrir `/dashboard`, `/topology`, `/flows`, `/alerts`, `/services`, `/admin/users`
 
-Le dashboard presente:
-- la sante globale du reseau
-- les KPI SDN
-- un resume topologique
-- l'activite recente
-- l'etat de supervision
+Important:
+- ouvrir le site sur `http://localhost:3000/login`
+- ne pas ouvrir `http://localhost:5000` pour l'interface
+- le port `5000` correspond au backend API
 
-### Topology
-
-La page topology permet:
-- d'afficher le graphe reseau
-- de selectionner un noeud
-- de lire les informations du noeud selectionne
-- de preparer l'integration des details ONOS
-
-### Devices
-
-La page devices permet:
-- d'afficher la liste des equipements
-- de voir leur statut
-- de consulter les ports associes
-- de preparer une vue d'inventaire reseau exploitable
-
-### Flows
-
-La page flows permet:
-- de lister les flow rules
-- de visualiser `device`, `priority`, `state`, `match`, `action`, `app`
-- de preparer la creation de nouvelles regles
-
-### Alerts
-
-La page alerts permet:
-- de suivre les incidents reseau
-- de filtrer les alertes par etat et severite
-- de centraliser la lecture operationnelle des evenements
-
-### Configuration
-
-La page configuration permet:
-- de preparer les parametres ONOS
-- de definir les parametres de collecte
-- de fixer la politique d'alertes
-- de poser les bases de la future integration backend / base de donnees
-
-## 9. Installation
+## 11. Installation
 
 ### Prerequis
 
-- Node.js 18+ recommande
+- Node.js 18+
 - npm
-- ONOS accessible si vous voulez tester le backend reel
+- ONOS accessible
+- Docker Desktop optionnel mais recommande pour PostgreSQL
 
-### Installation des dependances
+### Install
 
 ```bash
 npm install
 ```
 
-## 10. Lancement du projet
+## 12. Configuration
 
 ### Frontend
 
 ```bash
-npm run dev
+copy .env.local.example .env.local
 ```
 
-Par defaut, Next.js demarre sur `http://localhost:3000`.
-Si ce port est deja occupe, il choisira automatiquement un autre port libre.
-
-### Backend
-
-```bash
-npm run backend
-```
-
-Le backend demarre par defaut sur `http://localhost:5000`.
-
-## 11. Variables d'environnement
-
-### Frontend
-
-Creer un fichier `.env.local` a la racine:
+Exemple:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:5000/api
-NEXT_PUBLIC_ONOS_HOST=localhost
-NEXT_PUBLIC_ONOS_PORT=8181
 ```
 
 ### Backend
 
-Creer un fichier `backend/.env`:
+```bash
+copy backend/.env.example backend/.env
+```
+
+Variables importantes:
 
 ```env
 ONOS_HOST=localhost
 ONOS_PORT=8181
 ONOS_USER=karaf
 ONOS_PASSWORD=karaf
+
 PORT=5000
+NODE_ENV=development
+FRONTEND_URL=http://localhost:3000
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=sdnuser
+DB_PASSWORD=sdnpass123
+DB_NAME=sdn_platform
+
+JWT_SECRET=change-me-platformsdn-secret
+JWT_EXPIRES_IN=8h
+BCRYPT_SALT_ROUNDS=10
+
+DEFAULT_ADMIN_FULL_NAME=DNA Center Admin
+DEFAULT_ADMIN_USERNAME=admin
+DEFAULT_ADMIN_EMAIL=admin@sdn.local
+DEFAULT_ADMIN_PASSWORD=admin123
+
+ENABLE_AUTO_SYNC=false
+SYNC_INTERVAL_MS=5000
 ```
 
-## 12. API backend disponible
+## 13. Lancement
 
-### Health check
-
-```http
-GET /api/health
-```
-
-### Devices
-
-```http
-GET /api/devices
-GET /api/devices/:deviceId/ports
-```
-
-### Topology
-
-```http
-GET /api/topology
-```
-
-### Flows
-
-```http
-GET /api/flows
-POST /api/flows/:deviceId
-```
-
-## 13. Logique frontend actuelle
-
-Aujourd'hui, le frontend fonctionne avec deux modes:
-
-### Mode mock
-
-Le mode principal actuel repose sur:
-- `lib/mock-data.ts`
-- `hooks/sdn-hooks.ts`
-
-Cela permet d'avancer rapidement sur:
-- l'UX
-- le design
-- la structure des pages
-- les types metier
-
-### Mode integration backend
-
-Le service `services/api.ts` prepare deja les appels vers:
-- le health check
-- les devices
-- les ports
-- la topologie
-- les flows
-
-L'etape suivante sera de brancher progressivement les pages frontend sur ces endpoints reels.
-
-## 14. Roadmap du projet
-
-### Phase 1 - Frontend SDN
-
-- [x] Nettoyage du template initial
-- [x] Refonte de la navigation
-- [x] Dashboard SDN
-- [x] Topology page
-- [x] Devices page
-- [x] Flows page
-- [x] Alerts page
-- [x] Configuration page
-- [x] Login / Register adaptes au contexte SDN
-- [x] Nettoyage complet des pages marketing heritees
-- [ ] Harmonisation finale des mocks et types
-
-### Phase 2 - Integration backend
-
-- [x] Mise en place d'un backend Express minimal
-- [x] Connexion REST de base a ONOS
-- [x] Endpoints devices / topology / flows / ports
-- [ ] Branchement progressif du frontend sur l'API reelle
-- [ ] Gestion robuste des erreurs reseau
-- [ ] Couche de services backend plus modulaire
-
-### Phase 3 - ONOS et observabilite
-
-- [ ] Synchronisation reelle avec ONOS
-- [ ] Recuperation de statistiques ports / liens
-- [ ] Creation / suppression complete de flow rules
-- [ ] Detection d'incidents reseau
-- [ ] Rafraichissement temps reel
-
-### Phase 4 - Base de donnees et securite
-
-- [ ] Integration PostgreSQL
-- [ ] Modele utilisateurs / roles
-- [ ] Authentification JWT
-- [ ] Historique des evenements et metriques
-- [ ] Persistance des alertes
-- [ ] Configuration sauvegardee
-
-### Phase 5 - Industrialisation
-
-- [ ] Tests unitaires
-- [ ] Tests d'integration
-- [ ] CI/CD complete
-- [ ] Documentation API plus detaillee
-- [ ] Deploiement
-
-## 15. Challenges techniques connus
-
-### Cache Next.js en developpement sous Windows / OneDrive
-
-Pendant le developpement, des erreurs de chunks Next.js peuvent apparaitre si le projet est lance depuis un dossier synchronise par OneDrive. Pour reduire ce risque, le cache webpack de developpement a ete desactive dans `next.config.mjs`.
-
-Si l'application s'affiche en HTML brut ou si des erreurs `Cannot find module './xxx.js'` apparaissent:
-- arreter le serveur
-- supprimer ou renommer le dossier `.next`
-- relancer `npm run dev`
-- faire un hard refresh dans le navigateur
-
-### Hydration mismatch
-
-Certaines pages affichant l'heure courante peuvent produire un mismatch SSR/CSR si une valeur temps reel est rendue differemment entre serveur et client. Il faut eviter de rendre directement des timestamps variables au premier rendu serveur.
-
-## 16. Ameliorations recommandees
-
-Les prochaines ameliorations recommandees sont:
-- brancher `dashboard`, `devices`, `topology`, `flows` et `alerts` sur l'API backend
-- modulariser `backend/server.js`
-- introduire des DTO ou types partages frontend/backend
-- ajouter des tests sur les endpoints critiques
-- integrer PostgreSQL et Prisma ou un ORM equivalent
-- ajouter WebSocket pour les alertes temps reel
-
-## 17. Positionnement du projet
-
-Ce projet ne se limite pas a un simple site vitrine. Il s'agit d'une plateforme de supervision SDN orientee exploitation reseau. Le frontend a ete fortement refait pour raconter une vraie vision produit autour:
-- de la centralisation
-- de la visualisation
-- de la gestion des equipements
-- de la gestion des flows
-- de la lecture operationnelle des alertes
-
-## 18. Commandes utiles
-
-### Lancer le frontend
+### Base
 
 ```bash
-npm run dev
+docker compose up -d
 ```
 
-### Lancer le backend
+Note:
+- sur cette machine, Docker Desktop indique actuellement `hasNoVirtualization=true`
+- cela bloque le demarrage de PostgreSQL via Docker
+- la plateforme reste tout de meme testable grace au local store
+
+### Demarrage recommande
+
+```bash
+npm run start:platform
+```
+
+Verification rapide:
+
+```bash
+npm run status:platform
+```
+
+URLs utiles:
+- frontend: `http://localhost:3000/login`
+- backend health: `http://localhost:5000/api/health`
+
+### Backend
 
 ```bash
 npm run backend
 ```
 
-### Construire le projet
+### Frontend
 
 ```bash
+npm run dev
+```
+
+## 14. Ce que le projet doit faire avec ONOS
+
+La plateforme doit exploiter progressivement les modules ONOS, pas seulement quelques endpoints.
+
+### Dashboard / Executive View
+
+APIs a exploiter:
+- `/system`
+- `/cluster`
+- `/applications`
+- `/applications/{name}/health`
+- `/devices`
+- `/hosts`
+- `/statistics/ports`
+- `/statistics/flows/link`
+- `/intents/minisummary`
+
+Ameliorations recommandees pour `/dashboard`:
+- deja en place:
+  - carte controller
+  - cluster nodes
+  - applications
+  - premier niveau de sante applicative via `/applications/{name}/health`
+  - hosts discovered
+  - incidents recents
+  - badge source des donnees
+  - premiere lecture de la charge des liens via `/statistics/flows/link`
+- prochaines ameliorations:
+  - top liens les plus charges avec normalisation plus riche
+  - sante detaillee des applications avec score plus propre
+  - cartes `mastership`
+  - carte `controller memory / JVM` si exposee par `/system` ou `/metrics`
+  - widgets IMR et VPLS
+
+### Topology
+
+APIs a exploiter:
+- `/topology`
+- `/links`
+- `/hosts`
+- `/paths/{src}/{dst}`
+- `/paths/{src}/{dst}/disjoint`
+- `/regions`
+
+Etat actuel:
+- `topology` est branchee au backend reel et doit maintenant lire ONOS en direct par defaut
+
+Prochaines ameliorations:
+- details de lien
+- details d'hotes
+- calcul de chemins
+- regions
+- coloration par charge et sante
+- comparaison ONOS live vs DB cache seulement comme mode optionnel
+
+Idees concretes pour ameliorer la topologie:
+- ajouter un mode de layout `hierarchy` pour les topologies spine-leaf
+- afficher les ports sur les liens uniquement au survol pour eviter la surcharge visuelle
+- ajouter un filtre `hosts / infrastructure / inactive only`
+- ajouter un mode `path analysis` base sur `/paths/{src}/{dst}`
+- colorer les liens avec `/statistics/flows/link`
+- afficher les regions ONOS avec `/regions`
+- permettre un `drill-down` node -> ports -> flows -> intents
+- ajouter un panneau `Applications actives` base sur `/applications` pour lier la topo aux apps ONOS
+- ajouter un panneau `Mastership` base sur `/mastership/{deviceId}/master` et `/mastership/{deviceId}/role`
+- ajouter un panneau `Configuration` base sur `/configuration` et `/network/configuration`
+- ajouter un volet `Intent overlays` base sur `/intents`, `/intents/minisummary` et IMR
+- ajouter un volet `Services overlays` pour VPLS et multicast avec `/vpls` et `/mcast`
+- ajouter un mode `Operations` pour activer/desactiver un port via `/devices/{id}/portstate/{port_id}`
+
+### Flow Engineering
+
+APIs a exploiter:
+- `/flows`
+- `/flowobjectives`
+- `/nextobjectives`
+- `/groups`
+- `/meters`
+
+Etat actuel:
+- `GET /flows` branche
+- `POST /flows/:deviceId` branche
+- `DELETE /flows/:deviceId/:flowId` branche
+
+Prochaines ameliorations:
+- filtres par `deviceId`, `appId`, `state`, `tableId`
+- duplication d'une flow
+- formulaire avance match / action
+- pages `groups`, `meters`, `flowobjectives`
+
+### Intent And IMR
+
+Swagger IMR fourni:
+- `/imr/monitoredIntents`
+- `/imr/intentStats`
+- `/imr/reRouteIntents`
+
+Idee produit:
+- page `Intent Monitor`
+- page `Reroute Center`
+- vue `Intent -> Related flows`
+- comparaison avant/apres reroute
+
+### VPLS And Services
+
+Swagger VPLS fourni:
+- `GET /onos/vpls`
+- `POST /onos/vpls`
+- `GET /onos/vpls/{vplsName}`
+- `DELETE /onos/vpls/{vplsName}`
+- `POST /onos/vpls/interfaces/{vplsName}`
+- `DELETE /onos/vpls/interface/{vplsName}/{interfaceName}`
+
+Idee produit:
+- page `Services` deja ajoutee
+- creation d'un VPLS deja branchee
+- ajout/suppression interfaces deja branche
+- prochaines etapes:
+  - etat du service par site
+  - validation plus riche des formulaires
+  - correlation VPLS <-> devices <-> alerts
+
+### Network Configuration And Operations
+
+APIs a exploiter:
+- `/network/configuration`
+- `/configuration`
+- `/applications`
+- `/cluster`
+- `/mastership`
+- `/diagnostics`
+- `/keys`
+
+Idee produit:
+- page `Controller Operations`
+- page `Applications`
+- page `Cluster & Mastership`
+- page `Network Config`
+- page `Device Keys`
+
+## 15. Idee de plateforme complete
+
+Pages cibles a construire:
+
+1. `Dashboard`
+2. `Devices`
+3. `Topology`
+4. `Flows`
+5. `Alerts`
+6. `Services` pour VPLS / Multicast
+7. `Intent Monitor` pour IMR / Intents
+8. `Controller Operations`
+9. `Applications`
+10. `Admin Users`
+
+## 16. Priorites d'amelioration recommandees
+
+### Priorite 1
+
+- enrichir encore `/dashboard`
+- ajouter des cartes `mastership`
+- ajouter les metrics ONOS globales via `/system` et `/metrics`
+- ajouter une vue plus exploitable des hotspots reseau
+- ajouter des widgets IMR et VPLS actifs
+
+### Priorite 2
+
+- ameliorer `/alerts`
+- ajouter ack utilisateur
+- ajouter historique plus riche
+- ajouter correlation device / link / flow / host
+
+### Priorite 3
+
+- ameliorer `/flows`
+- filtres
+- duplication
+- edition plus riche
+- ajout des `groups`, `meters`, `flowobjectives`
+
+### Priorite 4
+
+- creer `Intent Monitor` pour IMR
+- creer `Controller Operations` pour cluster/mastership/applications/diagnostics
+- enrichir `Services` pour VPLS
+- ajouter etat par site
+- ajouter formulaires mieux validates
+
+### Priorite 5
+
+- modulariser `backend/server.js` en:
+  - `routes/`
+  - `services/`
+  - `auth/`
+  - `onos/`
+  - `db/`
+  - `sync/`
+
+## 17. Changements deja faits dans cette iteration
+
+- README centralise et mis a jour
+- couche auth JWT + bcrypt ajoutee
+- admin par defaut ajoute
+- panneau admin users ajoute
+- routes protegees ajoutees
+- `/` redirige vers `/dashboard`
+- `topology` branchee au backend reel
+- `topology` force maintenant ONOS direct par defaut avec hosts et liens d'acces
+- `topology` ajoute recherche, layouts, filtres d'affichage et controle auto-refresh
+- `flows` branchee au backend reel avec creation et suppression reelles
+- `alerts` branchee au backend reel avec resolution
+- dashboard enrichi avec controller / cluster / applications / hosts / intents / link load / incidents
+- chatbot dashboard redesign en widget flottant `AI`
+- dashboard enrichi avec runtime controller, snapshot mastership et classement des hotspots liens
+- dashboard enrichi avec metrics ONOS et resume VPLS actif
+- `services` ajoutee pour VPLS
+- `configuration` alignee avec les valeurs backend actuelles
+- guide agent `AGENT_PLATFORMSDN.md` ajoute pour cadrer les prochaines sessions
+- navbar restructuree pour eviter les debordements horizontaux
+
+## 18. Limitations connues
+
+- `backend/server.js` est encore monolithique
+- `/alerts` est maintenant branchee, mais sans WebSocket temps reel
+- PostgreSQL n'est pas demarrable ici tant que la virtualisation/Docker Linux n'est pas corrigee
+- `/register` et `/forgot-password` restent des UI non branchees
+- pas encore de WebSocket temps reel
+- pas encore de vrai audit admin
+
+## 19. Commandes utiles
+
+```bash
+npm install
+npm run backend
+npm run dev
 npm run build
+docker compose up -d
+npm run start:platform
+npm run status:platform
 ```
 
-### Lancer en production
+Note:
+- `npm run start:platform` fait maintenant un `build` propre puis lance le frontend en mode production pour eviter les pages qui s'affichent en HTML brut quand les assets de `next dev` ne sont pas encore stables
 
-```bash
-npm run start
-```
+## 20. Verification de cette iteration
 
-## 19. Auteur et evolution
+- `npm run build` passe
+- la page `/login` est branchee sur la vraie auth backend
+- la page `/topology` charge maintenant ONOS en direct par defaut
+- la page `/topology` supporte maintenant layouts, recherche, hosts et labels de liens
+- la page `/flows` supporte lecture, creation et suppression reelles via ONOS
+- la page `/alerts` charge maintenant les alertes backend reelles
+- le dashboard charge maintenant la vue controller / cluster / applications / hosts / intents
+- le dashboard charge maintenant aussi runtime controller, snapshot mastership et top hotspots liens
+- le dashboard charge maintenant aussi metrics controller ONOS et resume VPLS
+- la page `/services` charge maintenant les services VPLS
+- le local store a ete teste avec:
+  - login admin
+  - creation d'utilisateur
+  - resolution d'alerte
 
-Le projet a ete transforme a partir d'une base Next.js initiale pour devenir une plateforme SDN centree supervision reseau. La direction actuelle est clairement orientee:
-- frontend SDN complet
-- backend ONOS
-- persistance future
-- exploitation reseau centralisee
+## 21. Fichiers les plus importants
 
-## 20. Licence
+- `README.md`
+- `AGENT_PLATFORMSDN.md`
+- `backend/server.js`
+- `backend/.env.example`
+- `services/api.ts`
+- `components/auth-provider.tsx`
+- `components/navigation.tsx`
+- `app/login/page.tsx`
+- `app/dashboard/page.tsx`
+- `app/topology/page.tsx`
+- `app/flows/page.tsx`
+- `app/admin/users/page.tsx`
+- `middleware.ts`
+- `init-db.sql`
+- `scripts/start-platform.ps1`
+- `scripts/status-platform.ps1`
 
-Voir le fichier `LICENSE`.
+## 22. Suite recommandee
+
+Ordre conseille maintenant:
+
+1. enrichir encore `dashboard`
+2. ameliorer `alerts`
+3. ameliorer `flows`
+4. creer `Intent Monitor` pour IMR
+5. creer `Controller Operations`
+6. enrichir `Services` pour VPLS
+7. modulariser le backend
+
+## 23. Conclusion
+
+PlatformSDN n'est plus seulement une maquette frontend.
+
+La base actuelle contient deja:
+- une auth reelle
+- une navigation protegee
+- une topologie live
+- une gestion live des flows
+- un centre d'alertes backend
+- une premiere gestion VPLS
+- une base admin pour continuer a professionnaliser la plateforme
+
+La suite logique est de transformer le dashboard en vrai centre d'exploitation et d'exploiter progressivement les modules Swagger ONOS: VPLS, IMR, applications, cluster, mastership, intents, meters, groups et configuration reseau.
+
+## 24. Guide agent de reference
+
+Le document `AGENT_PLATFORMSDN.md` complete ce README.
+
+Il contient:
+- la vision produit detaillee par page
+- les APIs ONOS a exploiter ou finir de brancher
+- les routes backend a ajouter
+- les priorites d'implementation recommandees
+- les regles de travail a suivre a chaque session

@@ -1,6 +1,7 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Montserrat, Open_Sans } from "next/font/google"
+import { AuthProvider } from "@/components/auth-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import "./globals.css"
 
@@ -34,7 +35,7 @@ export default function RootLayout({
     <html lang="en" className={`${montserrat.variable} ${openSans.variable} antialiased`} suppressHydrationWarning>
       <body>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-          {children}
+          <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
       </body>
     </html>

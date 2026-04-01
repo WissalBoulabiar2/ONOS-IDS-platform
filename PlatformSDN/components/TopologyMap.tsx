@@ -1,11 +1,10 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react"
-import dynamic from "next/dynamic"
-import { TopologyNode, TopologyEdge } from "@/lib/types"
+import React, { useEffect, useRef } from "react"
+import type { TopologyLayoutMode } from "@/services/api"
 import { Card } from "@/components/ui/card"
+import type { TopologyEdge, TopologyNode } from "@/lib/types"
 
-// Dynamic import to avoid SSR issues
 let cytoscape: any = null
 
 if (typeof window !== "undefined") {
@@ -19,6 +18,40 @@ interface TopologyMapProps {
   edges: TopologyEdge[]
   selectedNode?: string | null
   onNodeClick?: (nodeId: string) => void
+  layout?: TopologyLayoutMode
+  showEdgeLabels?: boolean
+}
+
+function getLayoutConfig(layout: TopologyLayoutMode) {
+  switch (layout) {
+    case "breadthfirst":
+      return {
+        name: "breadthfirst",
+        directed: false,
+        padding: 30,
+        spacingFactor: 1.2,
+        animate: false,
+      }
+    case "circle":
+      return {
+        name: "circle",
+        padding: 40,
+        spacingFactor: 1.1,
+        animate: false,
+      }
+    case "cose":
+    default:
+      return {
+        name: "cose",
+        directed: false,
+        animate: false,
+        avoidOverlap: true,
+        nodeSpacing: 14,
+        gravity: 1,
+        coolingFactor: 0.99,
+        minTemp: 1.0,
+      }
+  }
 }
 
 export function TopologyMap({
@@ -26,6 +59,8 @@ export function TopologyMap({
   edges,
   selectedNode,
   onNodeClick,
+  layout = "cose",
+  showEdgeLabels = true,
 }: TopologyMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const cyRef = useRef<cytoscape.Core | null>(null)
@@ -38,13 +73,15 @@ export function TopologyMap({
       cyRef.current = null
     }
 
-    // Convert data to Cytoscape format
     const elements = [
       ...nodes.map((node) => ({
         data: {
           id: node.id,
           label: node.label,
-          type: node.type,
+          subtitle:
+            node.type === "host"
+              ? node.location || node.mac || ""
+              : node.manufacturer || "",
         },
         classes: [node.type, node.status],
       })),
@@ -53,13 +90,12 @@ export function TopologyMap({
           id: edge.id,
           source: edge.source,
           target: edge.target,
-          label: edge.label || "",
+          label: showEdgeLabels ? edge.label || "" : "",
         },
-        classes: [edge.status],
+        classes: [edge.status, edge.kind || "infrastructure"],
       })),
     ]
 
-    // Initialize Cytoscape
     try {
       const cy = cytoscape({
         container: containerRef.current,
@@ -70,99 +106,113 @@ export function TopologyMap({
             style: {
               "background-color": "#0891b2",
               label: "data(label)",
-              "text-valign": "center",
+              "text-valign": "bottom",
               "text-halign": "center",
-              color: "#fff",
-              "font-size": "12px",
+              "text-margin-y": 12,
+              "text-wrap": "wrap",
+              "text-max-width": 90,
+              color: "#e5f3ff",
+              "font-size": "11px",
+              "font-weight": 600,
               "border-width": "2px",
-              "border-color": "#0891b2",
-              width: "40px",
-              height: "40px",
+              "border-color": "#67e8f9",
+              width: 42,
+              height: 42,
+              "overlay-padding": 6,
             },
           },
           {
             selector: "node.switch",
             style: {
-              "background-color": "#0891b2",
-              shape: "square",
+              shape: "round-rectangle",
+              "background-color": "#0f766e",
+              "border-color": "#5eead4",
             },
           },
           {
             selector: "node.router",
             style: {
-              "background-color": "#06b6d4",
               shape: "diamond",
+              "background-color": "#0369a1",
+              "border-color": "#7dd3fc",
             },
           },
           {
             selector: "node.host",
             style: {
-              "background-color": "#14b8a6",
               shape: "ellipse",
+              width: 34,
+              height: 34,
+              "background-color": "#155e75",
+              "border-color": "#67e8f9",
             },
           },
           {
             selector: "node.inactive",
             style: {
-              "background-color": "#71717a",
+              "background-color": "#3f3f46",
               "border-color": "#71717a",
+              opacity: 0.8,
             },
           },
           {
             selector: "edge",
             style: {
-              width: 2,
-              "line-color": "#52525b",
-              "target-arrow-color": "#52525b",
+              width: 2.2,
+              "line-color": "#64748b",
+              "target-arrow-color": "#64748b",
               "target-arrow-shape": "triangle",
+              "curve-style": "bezier",
               label: "data(label)",
-              "font-size": "10px",
-              "text-background-color": "#1f2937",
-              "text-background-opacity": 0.8,
-              "text-background-padding": "2px",
-              color: "#d4d4d8",
+              "font-size": "9px",
+              "text-background-color": "#020617",
+              "text-background-opacity": 0.84,
+              "text-background-padding": "3px",
+              color: "#e2e8f0",
+            },
+          },
+          {
+            selector: "edge.infrastructure",
+            style: {
+              width: 2.4,
+            },
+          },
+          {
+            selector: "edge.access",
+            style: {
+              "line-style": "dotted",
+              "line-color": "#2dd4bf",
+              "target-arrow-color": "#2dd4bf",
+              width: 1.8,
             },
           },
           {
             selector: "edge.inactive",
             style: {
-              "line-color": "#a1a1a1",
-              "target-arrow-color": "#a1a1a1",
+              "line-color": "#a1a1aa",
+              "target-arrow-color": "#a1a1aa",
               "line-style": "dashed",
             },
           },
           {
             selector: "node:selected",
             style: {
-              "border-width": "3px",
+              "border-width": "4px",
               "border-color": "#fbbf24",
             },
           },
         ],
-        layout: {
-          name: "cose",
-          directed: false,
-          animate: false,
-          avoidOverlap: true,
-          nodeSpacing: 10,
-          gravity: 1,
-          cooling: 0.99,
-          coolingFactor: 0.99,
-          minTemp: 1.0,
-        },
+        layout: getLayoutConfig(layout),
       } as any)
 
-      // Handle node click
-      cy.on("tap", "node", function (evt: any) {
+      cy.on("tap", "node", function () {
         const nodeId = this.id()
-        if (onNodeClick) {
-          onNodeClick(nodeId)
-        }
+        onNodeClick?.(nodeId)
       })
 
+      cy.fit(undefined, 40)
       cyRef.current = cy
 
-      // Cleanup on unmount
       return () => {
         cy.stop()
         cy.destroy()
@@ -171,7 +221,7 @@ export function TopologyMap({
     } catch (err) {
       console.error("Cytoscape initialization error:", err)
     }
-  }, [nodes, edges, onNodeClick])
+  }, [edges, layout, nodes, onNodeClick, showEdgeLabels])
 
   useEffect(() => {
     const cy = cyRef.current
@@ -180,21 +230,25 @@ export function TopologyMap({
 
     cy.elements().unselect()
 
-    if (!selectedNode) return
+    if (!selectedNode) {
+      cy.fit(undefined, 40)
+      return
+    }
 
     const activeNode = cy.getElementById(selectedNode)
     if (activeNode.length > 0) {
       activeNode.select()
-      cy.center(activeNode)
+      cy.animate({
+        center: { eles: activeNode },
+        fit: { eles: activeNode.closedNeighborhood(), padding: 80 },
+        duration: 350,
+      })
     }
   }, [selectedNode])
 
   return (
-    <Card className="w-full h-full bg-gray-900 border-gray-700">
-      <div
-        ref={containerRef}
-        className="w-full h-96 bg-gray-950 rounded-lg"
-      />
+    <Card className="h-full w-full border-slate-800 bg-slate-950">
+      <div ref={containerRef} className="h-[460px] w-full rounded-lg bg-slate-950" />
     </Card>
   )
 }

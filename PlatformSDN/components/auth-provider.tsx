@@ -1,0 +1,92 @@
+"use client"
+
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
+import {
+  clearAuthSession,
+  hasAuthSession,
+  persistAuthSession,
+  sdnApi,
+  type AuthUser,
+} from "@/services/api"
+
+interface LoginParams {
+  identifier: string
+  password: string
+  rememberMe?: boolean
+}
+
+interface AuthContextValue {
+  user: AuthUser | null
+  isAuthenticated: boolean
+  isLoading: boolean
+  login: (params: LoginParams) => Promise<AuthUser>
+  logout: () => void
+  refreshProfile: () => Promise<void>
+}
+
+const AuthContext = createContext<AuthContextValue | undefined>(undefined)
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  const refreshProfile = async () => {
+    try {
+      const response = await sdnApi.getCurrentUser()
+      setUser(response.user)
+    } catch {
+      clearAuthSession()
+      setUser(null)
+    }
+  }
+
+  useEffect(() => {
+    if (!hasAuthSession()) {
+      setIsLoading(false)
+      return
+    }
+
+    refreshProfile().finally(() => {
+      setIsLoading(false)
+    })
+  }, [])
+
+  const login = async ({ identifier, password, rememberMe = false }: LoginParams) => {
+    const response = await sdnApi.login(identifier, password)
+    persistAuthSession(response.token, response.user.role, rememberMe)
+    setUser(response.user)
+    return response.user
+  }
+
+  const logout = () => {
+    clearAuthSession()
+    setUser(null)
+    router.push("/login")
+  }
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      isAuthenticated: Boolean(user),
+      isLoading,
+      login,
+      logout,
+      refreshProfile,
+    }),
+    [user, isLoading]
+  )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext)
+
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider")
+  }
+
+  return context
+}

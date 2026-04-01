@@ -1,8 +1,12 @@
 const express = require("express")
 const cors = require("cors")
 const axios = require("axios")
+const fs = require("fs")
 const path = require("path")
+const bcrypt = require("bcryptjs")
+const jwt = require("jsonwebtoken")
 const { Pool } = require("pg")
+const { newDb } = require("pg-mem")
 
 require("dotenv").config({ path: path.join(__dirname, ".env") })
 
@@ -22,17 +26,44 @@ const ONOS_URL = `http://${ONOS_CONFIG.host}:${ONOS_CONFIG.port}`
 const ONOS_API = `${ONOS_URL}/onos/v1`
 const AUTO_SYNC_ENABLED = process.env.ENABLE_AUTO_SYNC === "true"
 const AUTO_SYNC_INTERVAL = Number.parseInt(process.env.SYNC_INTERVAL_MS || "5000", 10)
+const JWT_SECRET = process.env.JWT_SECRET || "change-me-platformsdn-secret"
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "8h"
+const BCRYPT_SALT_ROUNDS = Number.parseInt(process.env.BCRYPT_SALT_ROUNDS || "10", 10)
+const LOCAL_STORE_PATH = path.join(__dirname, "dev-store.json")
+const DEFAULT_ADMIN_USER = {
+  fullName: process.env.DEFAULT_ADMIN_FULL_NAME || "DNA Center Admin",
+  username: process.env.DEFAULT_ADMIN_USERNAME || "admin",
+  email: process.env.DEFAULT_ADMIN_EMAIL || "admin@sdn.local",
+  password: process.env.DEFAULT_ADMIN_PASSWORD || "admin123",
+  role: "admin",
+}
+const FALLBACK_ADMIN_PASSWORD_HASH = bcrypt.hashSync(DEFAULT_ADMIN_USER.password, BCRYPT_SALT_ROUNDS)
+let databaseMode = "postgresql"
 
-const pool = new Pool({
-  user: process.env.DB_USER || "sdnuser",
-  password: process.env.DB_PASSWORD || "sdnpass123",
-  host: process.env.DB_HOST || "localhost",
-  port: Number.parseInt(process.env.DB_PORT || "5432", 10),
-  database: process.env.DB_NAME || "sdn_platform",
-})
+function createExternalPool() {
+  return new Pool({
+    user: process.env.DB_USER || "sdnuser",
+    password: process.env.DB_PASSWORD || "sdnpass123",
+    host: process.env.DB_HOST || "localhost",
+    port: Number.parseInt(process.env.DB_PORT || "5432", 10),
+    database: process.env.DB_NAME || "sdn_platform",
+  })
+}
+
+let pool = createExternalPool()
 
 const onos = axios.create({
   baseURL: ONOS_API,
+  timeout: 8000,
+  proxy: false,
+  auth: {
+    username: ONOS_CONFIG.user,
+    password: ONOS_CONFIG.password,
+  },
+})
+
+const onosVpls = axios.create({
+  baseURL: `${ONOS_URL}/onos/vpls`,
   timeout: 8000,
   proxy: false,
   auth: {
@@ -45,12 +76,303 @@ let isDatabaseReady = false
 let lastDatabaseError = null
 let syncTimer = null
 let syncInProgress = false
+let alertSyncPromise = null
 
-pool.on("error", (error) => {
-  isDatabaseReady = false
-  lastDatabaseError = error.message
-  console.error("[DB] Idle client error:", error.message)
-})
+function attachPoolErrorHandler(activePool) {
+  if (typeof activePool?.on !== "function") {
+    return
+  }
+
+  activePool.on("error", (error) => {
+    isDatabaseReady = false
+    lastDatabaseError = error.message
+    console.error("[DB] Idle client error:", error.message)
+  })
+}
+
+attachPoolErrorHandler(pool)
+
+function sanitizeUser(row) {
+  if (!row) {
+    return null
+  }
+
+  return {
+    id: row.id,
+    username: row.username,
+    email: row.email,
+    fullName: row.full_name,
+    role: row.role,
+    isActive: row.is_active,
+    lastLogin: row.last_login,
+    createdAt: row.created_at,
+  }
+}
+
+function getFallbackAdminUser() {
+  return {
+    id: 0,
+    username: DEFAULT_ADMIN_USER.username,
+    email: DEFAULT_ADMIN_USER.email,
+    full_name: DEFAULT_ADMIN_USER.fullName,
+    role: DEFAULT_ADMIN_USER.role,
+    is_active: true,
+    last_login: null,
+    created_at: new Date(0).toISOString(),
+  }
+}
+
+function getLocalStoreDefaultState() {
+  return {
+    users: [
+      {
+        ...getFallbackAdminUser(),
+        password_hash: FALLBACK_ADMIN_PASSWORD_HASH,
+        updated_at: new Date(0).toISOString(),
+      },
+    ],
+    alerts: [],
+  }
+}
+
+function ensureDefaultLocalStoreUser(store) {
+  const hasDefaultAdmin = (store.users || []).some(
+    (user) =>
+      String(user.email || "").toLowerCase() === DEFAULT_ADMIN_USER.email.toLowerCase() ||
+      String(user.username || "").toLowerCase() === DEFAULT_ADMIN_USER.username.toLowerCase()
+  )
+
+  if (!hasDefaultAdmin) {
+    store.users.unshift({
+      ...getFallbackAdminUser(),
+      password_hash: FALLBACK_ADMIN_PASSWORD_HASH,
+      updated_at: new Date(0).toISOString(),
+    })
+  }
+
+  return store
+}
+
+function readLocalStore() {
+  try {
+    if (!fs.existsSync(LOCAL_STORE_PATH)) {
+      const initialStore = getLocalStoreDefaultState()
+      fs.writeFileSync(LOCAL_STORE_PATH, JSON.stringify(initialStore, null, 2))
+      return initialStore
+    }
+
+    const raw = fs.readFileSync(LOCAL_STORE_PATH, "utf8")
+    const parsed = JSON.parse(raw)
+
+    const store = {
+      users: Array.isArray(parsed.users) ? parsed.users : [],
+      alerts: Array.isArray(parsed.alerts) ? parsed.alerts : [],
+    }
+
+    return ensureDefaultLocalStoreUser(store)
+  } catch (error) {
+    console.error("[LOCAL-STORE] Failed to read local store, recreating it:", error.message)
+    const initialStore = getLocalStoreDefaultState()
+    fs.writeFileSync(LOCAL_STORE_PATH, JSON.stringify(initialStore, null, 2))
+    return initialStore
+  }
+}
+
+function writeLocalStore(store) {
+  const normalizedStore = ensureDefaultLocalStoreUser({
+    users: Array.isArray(store.users) ? store.users : [],
+    alerts: Array.isArray(store.alerts) ? store.alerts : [],
+  })
+
+  fs.writeFileSync(LOCAL_STORE_PATH, JSON.stringify(normalizedStore, null, 2))
+  return normalizedStore
+}
+
+function nextLocalId(items) {
+  return items.reduce((maxId, item) => {
+    const currentId = Number(item.id)
+    return Number.isFinite(currentId) ? Math.max(maxId, currentId) : maxId
+  }, -1) + 1
+}
+
+async function enableEmbeddedDatabase() {
+  const database = newDb({
+    autoCreateForeignKeyIndices: true,
+  })
+
+  const schemaSql = fs.readFileSync(path.join(__dirname, "..", "init-db.sql"), "utf8")
+  database.public.none(schemaSql)
+
+  const adapter = database.adapters.createPg()
+  pool = new adapter.Pool()
+  attachPoolErrorHandler(pool)
+  databaseMode = "embedded-pgmem"
+  isDatabaseReady = true
+  lastDatabaseError = null
+
+  return true
+}
+
+function signJwtForUser(user) {
+  return jwt.sign(
+    {
+      sub: String(user.id),
+      username: user.username,
+      email: user.email,
+      role: user.role,
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES_IN }
+  )
+}
+
+function authServiceUnavailable(res) {
+  return res.status(503).json({
+    error: "Authentication service unavailable",
+    message: lastDatabaseError || "Persistent authentication backend is unavailable",
+  })
+}
+
+async function ensureAuthSchema() {
+  if (!(await refreshDatabaseStatus())) {
+    return false
+  }
+
+  try {
+    if (databaseMode !== "embedded-pgmem") {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id SERIAL PRIMARY KEY,
+          username VARCHAR(100) UNIQUE NOT NULL,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          full_name VARCHAR(255) NOT NULL,
+          role VARCHAR(50) NOT NULL DEFAULT 'operator',
+          password_hash TEXT NOT NULL,
+          is_active BOOLEAN DEFAULT true,
+          last_login TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT users_role_check CHECK (role IN ('admin', 'operator', 'viewer'))
+        )
+      `)
+
+      await pool.query("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
+      await pool.query("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)")
+      await pool.query("CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)")
+      await pool.query("CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active)")
+    }
+
+    const existingUser = await pool.query(
+      `SELECT id
+       FROM users
+       WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($2)
+       LIMIT 1`,
+      [DEFAULT_ADMIN_USER.email, DEFAULT_ADMIN_USER.username]
+    )
+
+    if (existingUser.rows.length === 0) {
+      const passwordHash = await bcrypt.hash(DEFAULT_ADMIN_USER.password, BCRYPT_SALT_ROUNDS)
+
+      await pool.query(
+        `INSERT INTO users (
+           username, email, full_name, role, password_hash, is_active, created_at, updated_at
+         )
+         VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())`,
+        [
+          DEFAULT_ADMIN_USER.username,
+          DEFAULT_ADMIN_USER.email,
+          DEFAULT_ADMIN_USER.fullName,
+          DEFAULT_ADMIN_USER.role,
+          passwordHash,
+        ]
+      )
+
+      console.log(`[AUTH] Default admin user created: ${DEFAULT_ADMIN_USER.email}`)
+    }
+
+    return true
+  } catch (error) {
+    console.error("[AUTH] Failed to initialize auth schema:", error.message)
+    return false
+  }
+}
+
+async function authenticateRequest(req, res, next) {
+  const authHeader = req.headers.authorization || ""
+  const [scheme, token] = authHeader.split(" ")
+
+  if (scheme !== "Bearer" || !token) {
+    return res.status(401).json({
+      error: "Authentication required",
+      message: "Missing or invalid bearer token",
+    })
+  }
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET)
+
+    if (!(await refreshDatabaseStatus())) {
+      const localStore = readLocalStore()
+      const localUser = localStore.users.find(
+        (user) =>
+          String(user.id) === String(payload.sub) ||
+          String(user.email || "").toLowerCase() === String(payload.email || "").toLowerCase() ||
+          String(user.username || "").toLowerCase() === String(payload.username || "").toLowerCase()
+      )
+
+      if (!localUser || !localUser.is_active) {
+        return authServiceUnavailable(res)
+      }
+
+      req.auth = payload
+      req.currentUser = localUser
+      return next()
+    }
+
+    const result = await pool.query(
+      `SELECT *
+       FROM users
+       WHERE id = $1 AND is_active = true
+       LIMIT 1`,
+      [payload.sub]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        error: "Invalid session",
+        message: "User account is not available anymore",
+      })
+    }
+
+    req.auth = payload
+    req.currentUser = result.rows[0]
+    next()
+  } catch (error) {
+    return res.status(401).json({
+      error: "Invalid token",
+      message: error.message,
+    })
+  }
+}
+
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.currentUser) {
+      return res.status(401).json({
+        error: "Authentication required",
+      })
+    }
+
+    if (!roles.includes(req.currentUser.role)) {
+      return res.status(403).json({
+        error: "Forbidden",
+        message: `This action requires one of these roles: ${roles.join(", ")}`,
+      })
+    }
+
+    next()
+  }
+}
 
 function normalizeDeviceType(type) {
   const normalized = String(type || "switch").toLowerCase()
@@ -143,6 +465,413 @@ function formatOnosFlow(flow) {
   }
 }
 
+function formatAlertRow(row) {
+  return {
+    id: String(row.id),
+    type: row.alert_type,
+    severity: row.severity,
+    deviceId: row.device_id,
+    message: row.message,
+    resolved: row.resolved,
+    createdAt: row.created_at,
+    resolvedAt: row.resolved_at,
+  }
+}
+
+function normalizeArrayPayload(payload, keys = []) {
+  if (Array.isArray(payload)) {
+    return payload
+  }
+
+  for (const key of keys) {
+    if (Array.isArray(payload?.[key])) {
+      return payload[key]
+    }
+  }
+
+  return []
+}
+
+function normalizeObjectPayload(payload, keys = []) {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    for (const key of keys) {
+      if (payload[key] && typeof payload[key] === "object" && !Array.isArray(payload[key])) {
+        return payload[key]
+      }
+    }
+
+    return payload
+  }
+
+  return {}
+}
+
+function normalizeVplsItems(payload) {
+  return normalizeArrayPayload(payload, ["vpls", "vplss", "services", "items"])
+}
+
+function normalizeLinkLoadEntries(payload) {
+  return normalizeArrayPayload(payload, ["loads", "statistics", "links", "entries"])
+}
+
+function buildAlertSignature(alert) {
+  return [alert.alert_type, alert.device_id || "-", alert.message].join("::")
+}
+
+function dedupeDerivedAlerts(alerts) {
+  const uniqueAlerts = new Map()
+
+  for (const alert of alerts) {
+    uniqueAlerts.set(buildAlertSignature(alert), alert)
+  }
+
+  return Array.from(uniqueAlerts.values())
+}
+
+function buildDerivedAlertsFromSnapshot({
+  devices = [],
+  links = [],
+  flows = [],
+  portsByDevice = [],
+  controllerError = null,
+}) {
+  const derivedAlerts = []
+
+  if (controllerError) {
+    derivedAlerts.push({
+      device_id: null,
+      alert_type: "controller_unreachable",
+      severity: "critical",
+      message: `ONOS controller is unreachable: ${controllerError}`,
+    })
+
+    return derivedAlerts
+  }
+
+  if (devices.length === 0) {
+    derivedAlerts.push({
+      device_id: null,
+      alert_type: "inventory_empty",
+      severity: "warning",
+      message: "No devices are currently discovered in ONOS inventory.",
+    })
+  }
+
+  for (const device of devices) {
+    if (device.available === false) {
+      derivedAlerts.push({
+        device_id: device.id,
+        alert_type: "device_lost",
+        severity: "critical",
+        message: `Device ${device.id} is unavailable from the ONOS inventory.`,
+      })
+    }
+  }
+
+  for (const link of links) {
+    const state = String(link.state || "ACTIVE").toUpperCase()
+
+    if (state !== "ACTIVE") {
+      derivedAlerts.push({
+        device_id: link.src?.device || null,
+        alert_type: "link_down",
+        severity: "critical",
+        message: `Link ${link.src?.device || "unknown"}:${link.src?.port || "?"} -> ${link.dst?.device || "unknown"}:${link.dst?.port || "?"} is ${state.toLowerCase()}.`,
+      })
+    }
+  }
+
+  for (const portGroup of portsByDevice) {
+    const degradedPorts = (portGroup.ports || []).filter((port) => port.isEnabled && !port.isLive)
+
+    if (degradedPorts.length > 0) {
+      derivedAlerts.push({
+        device_id: portGroup.deviceId,
+        alert_type: "port_error",
+        severity: degradedPorts.length >= 3 ? "critical" : "warning",
+        message: `${degradedPorts.length} enabled port(s) are not live on device ${portGroup.deviceId}.`,
+      })
+    }
+  }
+
+  const pendingFlowsByDevice = new Map()
+
+  for (const flow of flows) {
+    const state = String(flow.state || "").toUpperCase()
+
+    if (state.includes("PENDING")) {
+      const current = pendingFlowsByDevice.get(flow.deviceId) || 0
+      pendingFlowsByDevice.set(flow.deviceId, current + 1)
+    }
+  }
+
+  for (const [deviceId, totalPending] of pendingFlowsByDevice.entries()) {
+    derivedAlerts.push({
+      device_id: deviceId,
+      alert_type: "flow_error",
+      severity: totalPending >= 5 ? "critical" : "warning",
+      message: `${totalPending} pending flow rule(s) detected on device ${deviceId}.`,
+    })
+  }
+
+  return dedupeDerivedAlerts(derivedAlerts)
+}
+
+function summarizeAlerts(alerts) {
+  const openAlerts = alerts.filter((alert) => !alert.resolved)
+
+  return {
+    total: alerts.length,
+    open: openAlerts.length,
+    resolved: alerts.length - openAlerts.length,
+    critical: openAlerts.filter((alert) => alert.severity === "critical").length,
+    warning: openAlerts.filter((alert) => alert.severity === "warning").length,
+    info: openAlerts.filter((alert) => alert.severity === "info").length,
+  }
+}
+
+function isClusterNodeOnline(node) {
+  const state = String(node?.state || node?.status || "").toUpperCase()
+  return node?.online === true || node?.ready === true || ["ACTIVE", "READY", "ONLINE"].includes(state)
+}
+
+function isApplicationActive(application) {
+  const state = String(application?.state || application?.status || "").toUpperCase()
+  return application?.active === true || state === "ACTIVE"
+}
+
+function toFiniteNumberOrNull(value) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+
+  return null
+}
+
+function roundTo(value, digits = 2) {
+  return Number(value.toFixed(digits))
+}
+
+function getNestedValue(source, path) {
+  return path.reduce((current, key) => {
+    if (current && typeof current === "object") {
+      return current[key]
+    }
+
+    return undefined
+  }, source)
+}
+
+function pickFirstString(source, paths) {
+  for (const path of paths) {
+    const value = getNestedValue(source, path.split("."))
+
+    if (value === undefined || value === null) {
+      continue
+    }
+
+    const text = String(value).trim()
+    if (text) {
+      return text
+    }
+  }
+
+  return null
+}
+
+function pickFirstNumber(source, paths) {
+  for (const path of paths) {
+    const value = getNestedValue(source, path.split("."))
+    const parsed = toFiniteNumberOrNull(value)
+
+    if (parsed !== null) {
+      return parsed
+    }
+  }
+
+  return null
+}
+
+function normalizeMemoryMegabytes(value) {
+  const numeric = toFiniteNumberOrNull(value)
+
+  if (numeric === null) {
+    return null
+  }
+
+  const absolute = Math.abs(numeric)
+
+  if (absolute >= 1024 * 1024) {
+    return roundTo(numeric / (1024 * 1024))
+  }
+
+  if (absolute >= 8192) {
+    return roundTo(numeric / 1024)
+  }
+
+  return roundTo(numeric)
+}
+
+function extractControllerRuntime(systemData) {
+  const totalMemoryRaw = pickFirstNumber(systemData, [
+    "memory.total",
+    "memory.totalMemory",
+    "totalMemory",
+    "total_memory",
+    "mem.max",
+    "mem.committed",
+    "heap.total",
+    "heap.max",
+    "jvm.memory.total",
+    "jvm.memory.max",
+  ])
+
+  const freeMemoryRaw = pickFirstNumber(systemData, [
+    "memory.free",
+    "memory.freeMemory",
+    "freeMemory",
+    "free_memory",
+    "heap.free",
+    "jvm.memory.free",
+    "mem.free",
+  ])
+
+  const usedMemoryRaw =
+    pickFirstNumber(systemData, [
+      "memory.used",
+      "memory.usedMemory",
+      "usedMemory",
+      "used_memory",
+      "mem.current",
+      "heap.used",
+      "jvm.memory.used",
+    ]) ??
+    (totalMemoryRaw !== null && freeMemoryRaw !== null ? totalMemoryRaw - freeMemoryRaw : null)
+
+  const totalMemoryMb = normalizeMemoryMegabytes(totalMemoryRaw)
+  const freeMemoryMb = normalizeMemoryMegabytes(freeMemoryRaw)
+  const usedMemoryMb = normalizeMemoryMegabytes(usedMemoryRaw)
+  const usedMemoryPercent =
+    totalMemoryMb && usedMemoryMb !== null && totalMemoryMb > 0
+      ? roundTo((usedMemoryMb / totalMemoryMb) * 100, 1)
+      : null
+
+  return {
+    node: pickFirstString(systemData, [
+      "node",
+      "nodeId",
+      "system.node",
+      "hostname",
+    ]),
+    clusterId: pickFirstString(systemData, [
+      "clusterId",
+      "cluster.id",
+      "system.clusterId",
+    ]),
+    os: pickFirstString(systemData, [
+      "osName",
+      "os.name",
+      "system.osName",
+      "system.os.name",
+      "os",
+    ]),
+    javaVersion: pickFirstString(systemData, [
+      "javaVersion",
+      "java.version",
+      "runtime.javaVersion",
+      "jvm.version",
+    ]),
+    processors: pickFirstNumber(systemData, [
+      "availableProcessors",
+      "processors",
+      "cpu.count",
+      "cpu.cores",
+    ]),
+    totalMemoryMb,
+    usedMemoryMb,
+    freeMemoryMb,
+    usedMemoryPercent,
+    threadsLive: pickFirstNumber(systemData, [
+      "threads.live",
+      "thread.live",
+      "jvm.threads.live",
+    ]),
+    threadsDaemon: pickFirstNumber(systemData, [
+      "threads.daemon",
+      "thread.daemon",
+      "jvm.threads.daemon",
+    ]),
+    devices: pickFirstNumber(systemData, ["devices", "inventory.devices"]),
+    links: pickFirstNumber(systemData, ["links", "inventory.links"]),
+    hosts: pickFirstNumber(systemData, ["hosts", "inventory.hosts"]),
+    flows: pickFirstNumber(systemData, ["flows", "inventory.flows"]),
+  }
+}
+
+function normalizeMastershipNode(payload) {
+  if (!payload) {
+    return null
+  }
+
+  if (typeof payload === "string" || typeof payload === "number") {
+    const text = String(payload).trim()
+    return text || null
+  }
+
+  const directCandidates = [
+    payload.master,
+    payload.masterId,
+    payload.masterNode,
+    payload.nodeId,
+    payload.controller,
+    payload.leader,
+    payload.id,
+  ]
+
+  for (const candidate of directCandidates) {
+    if (candidate === undefined || candidate === null) {
+      continue
+    }
+
+    if (typeof candidate === "object") {
+      const nested = normalizeMastershipNode(candidate)
+      if (nested) {
+        return nested
+      }
+      continue
+    }
+
+    const text = String(candidate).trim()
+    if (text) {
+      return text
+    }
+  }
+
+  return null
+}
+
+function buildClusterNodeStatusMap(clusterNodes) {
+  const statusMap = new Map()
+
+  for (const node of clusterNodes) {
+    const online = isClusterNodeOnline(node)
+    const aliases = [node?.id, node?.nodeId, node?.ip, node?.address]
+      .filter(Boolean)
+      .map((value) => String(value))
+
+    for (const alias of aliases) {
+      statusMap.set(alias, online)
+    }
+  }
+
+  return statusMap
+}
+
 async function fetchOnosDevicesRaw() {
   const response = await onos.get("/devices")
   return response.data.devices || []
@@ -163,12 +892,527 @@ async function fetchOnosFlowsRaw() {
   return response.data.flows || []
 }
 
+async function fetchOnosSystemRaw() {
+  const response = await onos.get("/system")
+  return response.data || {}
+}
+
+async function fetchOnosClusterRaw() {
+  const response = await onos.get("/cluster")
+  return normalizeArrayPayload(response.data, ["nodes", "cluster", "clusters"])
+}
+
+async function fetchOnosApplicationsRaw() {
+  const response = await onos.get("/applications")
+  return normalizeArrayPayload(response.data, ["applications", "apps"])
+}
+
+async function fetchOnosHostsRaw() {
+  const response = await onos.get("/hosts")
+  return normalizeArrayPayload(response.data, ["hosts"])
+}
+
+function normalizeTopologySourceMode(value) {
+  const candidate = String(value || "onos").toLowerCase()
+  return ["onos", "database", "auto"].includes(candidate) ? candidate : "onos"
+}
+
+function buildTopologyEdgeLabel(sourcePort, targetPort, fallback = "") {
+  const from = sourcePort ? String(sourcePort) : ""
+  const to = targetPort ? String(targetPort) : ""
+  const suffix = fallback ? ` • ${fallback}` : ""
+
+  if (from && to) {
+    return `${from} -> ${to}${suffix}`
+  }
+
+  if (from || to) {
+    return `${from || to}${suffix}`
+  }
+
+  return fallback || ""
+}
+
+function mapOnosDeviceToTopologyNode(device) {
+  return {
+    id: device.id,
+    label: device.id.split(":")[1] || device.id,
+    type: normalizeDeviceType(device.type),
+    available: device.available !== false,
+    status: device.available !== false ? "active" : "inactive",
+    manufacturer: device.manufacturer || device.mfr || null,
+    hwVersion: device.hw || device.hwVersion || null,
+    swVersion: device.sw || device.swVersion || null,
+  }
+}
+
+function mapOnosLinkToTopologyEdge(link) {
+  const sourcePort = link?.src?.port ? String(link.src.port) : null
+  const targetPort = link?.dst?.port ? String(link.dst.port) : null
+
+  return {
+    id: `${link.src.device}-${link.dst.device}-${sourcePort || "na"}-${targetPort || "na"}`,
+    source: link.src.device,
+    target: link.dst.device,
+    label: buildTopologyEdgeLabel(sourcePort, targetPort, link.type || ""),
+    status: String(link.state || "ACTIVE").toLowerCase() === "active" ? "active" : "inactive",
+    sourcePort,
+    targetPort,
+    kind: "infrastructure",
+  }
+}
+
+function mapOnosHostToTopologyNode(host) {
+  const ipAddresses = normalizeArrayPayload(host, ["ipAddresses"]).map((ip) => String(ip))
+  const locations = normalizeArrayPayload(host, ["locations"])
+  const primaryLocation = locations[0] || null
+  const mac = host.mac || String(host.id || "").split("/")[0] || null
+  const label = ipAddresses[0] || mac || host.id
+
+  return {
+    id: host.id,
+    label,
+    type: "host",
+    available: locations.length > 0,
+    status: locations.length > 0 ? "active" : "inactive",
+    manufacturer: null,
+    hwVersion: null,
+    swVersion: null,
+    mac,
+    ipAddresses,
+    vlan: host.vlan || null,
+    location: primaryLocation ? `${primaryLocation.elementId}/${primaryLocation.port}` : null,
+  }
+}
+
+function mapOnosHostToTopologyEdges(host) {
+  const locations = [
+    ...normalizeArrayPayload(host, ["locations"]),
+    ...normalizeArrayPayload(host, ["auxLocations"]),
+  ]
+
+  return locations.map((location, index) => {
+    const targetPort = location?.port ? String(location.port) : null
+
+    return {
+      id: `${host.id}-${location.elementId}-${targetPort || "na"}-${index}`,
+      source: host.id,
+      target: location.elementId,
+      label: buildTopologyEdgeLabel(null, targetPort, "host"),
+      status: "active",
+      sourcePort: null,
+      targetPort,
+      kind: "access",
+    }
+  })
+}
+
+async function getDatabaseTopologySnapshot() {
+  const devicesResult = await pool.query("SELECT * FROM devices ORDER BY device_id ASC")
+  const linksResult = await pool.query(
+    "SELECT * FROM topology_links ORDER BY last_updated DESC, source_device ASC"
+  )
+
+  if (devicesResult.rows.length === 0) {
+    return null
+  }
+
+  return {
+    source: "database",
+    nodes: devicesResult.rows.map((row) => ({
+      id: row.device_id,
+      label: row.device_id.split(":")[1] || row.device_id,
+      type: normalizeDeviceType(row.type),
+      available: row.available,
+      status: row.available ? "active" : "inactive",
+      manufacturer: row.manufacturer || null,
+      serialNumber: row.serial_number || null,
+    })),
+    edges: linksResult.rows.map((row) => ({
+      id: `${row.source_device}-${row.target_device}-${row.source_port || "na"}-${row.target_port || "na"}`,
+      source: row.source_device,
+      target: row.target_device,
+      label: buildTopologyEdgeLabel(row.source_port, row.target_port, row.link_type || ""),
+      status: String(row.state || "ACTIVE").toLowerCase() === "active" ? "active" : "inactive",
+      sourcePort: row.source_port ? String(row.source_port) : null,
+      targetPort: row.target_port ? String(row.target_port) : null,
+      kind: "infrastructure",
+    })),
+  }
+}
+
+async function fetchOnosIntentMiniSummaryRaw() {
+  const response = await onos.get("/intents/minisummary")
+  return normalizeObjectPayload(response.data, ["summary"])
+}
+
+async function fetchOnosApplicationHealthRaw(name) {
+  const response = await onos.get(`/applications/${encodeURIComponent(name)}/health`)
+  return response.data || {}
+}
+
+async function fetchOnosMastershipMasterRaw(deviceId) {
+  const response = await onos.get(`/mastership/${encodeURIComponent(deviceId)}/master`)
+  return response.data || {}
+}
+
+async function fetchOnosMetricsRaw() {
+  const response = await onos.get("/metrics")
+  return normalizeArrayPayload(response.data, ["metrics", "items"])
+}
+
+async function fetchOnosLinkLoadRaw() {
+  const response = await onos.get("/statistics/flows/link")
+  return normalizeLinkLoadEntries(response.data)
+}
+
+async function fetchOnosVplsRaw() {
+  const response = await onosVpls.get("")
+  return normalizeVplsItems(response.data)
+}
+
+async function buildMastershipSnapshot(devices, clusterNodes) {
+  const sampledDevices = devices.slice(0, 12)
+
+  if (sampledDevices.length === 0) {
+    return {
+      totalDevices: 0,
+      sampledDevices: 0,
+      resolvedDevices: 0,
+      unresolvedDevices: 0,
+      leaders: [],
+      devices: [],
+    }
+  }
+
+  const clusterNodeStatus = buildClusterNodeStatusMap(clusterNodes)
+
+  const deviceAssignments = await Promise.all(
+    sampledDevices.map(async (device) => {
+      try {
+        const payload = await fetchOnosMastershipMasterRaw(device.id)
+        return {
+          deviceId: device.id,
+          master: normalizeMastershipNode(payload),
+          available: device.available !== false,
+        }
+      } catch {
+        return {
+          deviceId: device.id,
+          master: null,
+          available: device.available !== false,
+        }
+      }
+    })
+  )
+
+  const leadersMap = new Map()
+
+  for (const assignment of deviceAssignments) {
+    if (!assignment.master) {
+      continue
+    }
+
+    leadersMap.set(assignment.master, (leadersMap.get(assignment.master) || 0) + 1)
+  }
+
+  const leaders = [...leadersMap.entries()]
+    .map(([controller, devicesOwned]) => ({
+      controller,
+      devices: devicesOwned,
+      online: clusterNodeStatus.has(controller) ? clusterNodeStatus.get(controller) : null,
+    }))
+    .sort((left, right) => right.devices - left.devices || left.controller.localeCompare(right.controller))
+    .slice(0, 4)
+
+  return {
+    totalDevices: devices.length,
+    sampledDevices: sampledDevices.length,
+    resolvedDevices: deviceAssignments.filter((assignment) => Boolean(assignment.master)).length,
+    unresolvedDevices: deviceAssignments.filter((assignment) => !assignment.master).length,
+    leaders,
+    devices: deviceAssignments.slice(0, 6),
+  }
+}
+
+function extractMetricKind(metricEntry) {
+  const payload = metricEntry?.metric
+
+  if (!payload || typeof payload !== "object") {
+    return "unknown"
+  }
+
+  const keys = Object.keys(payload)
+  return keys[0] || "unknown"
+}
+
+function buildMetricsSnapshot(metricsEntries) {
+  const kindCounts = {
+    timer: 0,
+    counter: 0,
+    gauge: 0,
+    meter: 0,
+    histogram: 0,
+  }
+
+  const normalizedEntries = metricsEntries.map((entry) => {
+    const kind = extractMetricKind(entry)
+    const values = entry?.metric?.[kind] || {}
+
+    if (Object.prototype.hasOwnProperty.call(kindCounts, kind)) {
+      kindCounts[kind] += 1
+    }
+
+    return {
+      name: String(entry?.name || "unknown"),
+      kind,
+      counter: toFiniteNumberOrNull(values.counter),
+      meanRate: toFiniteNumberOrNull(values.mean_rate ?? values.meanRate ?? values.rate),
+      max: toFiniteNumberOrNull(values.max),
+    }
+  })
+
+  const highlighted = normalizedEntries
+    .sort((left, right) => {
+      const leftPrimary = left.meanRate ?? left.counter ?? left.max ?? 0
+      const rightPrimary = right.meanRate ?? right.counter ?? right.max ?? 0
+      return rightPrimary - leftPrimary || left.name.localeCompare(right.name)
+    })
+    .slice(0, 5)
+
+  return {
+    totalMetrics: metricsEntries.length,
+    timers: kindCounts.timer,
+    counters: kindCounts.counter,
+    gauges: kindCounts.gauge,
+    meters: kindCounts.meter,
+    histograms: kindCounts.histogram,
+    highlighted,
+  }
+}
+
+function buildVplsSnapshot(vplsItems) {
+  const totalInterfaces = vplsItems.reduce((sum, item) => sum + normalizeArrayPayload(item, ["interfaces"]).length, 0)
+  const encapsulationCounts = new Map()
+
+  for (const item of vplsItems) {
+    const encapsulation = String(item?.encapsulation || "Unknown")
+    encapsulationCounts.set(encapsulation, (encapsulationCounts.get(encapsulation) || 0) + 1)
+  }
+
+  const encapsulations = [...encapsulationCounts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+    .slice(0, 4)
+
+  return {
+    totalServices: vplsItems.length,
+    totalInterfaces,
+    encapsulations,
+    services: vplsItems.slice(0, 4).map((item) => ({
+      name: String(item?.name || "unknown"),
+      encapsulation: item?.encapsulation ? String(item.encapsulation) : null,
+      interfaces: normalizeArrayPayload(item, ["interfaces"]).length,
+    })),
+  }
+}
+
 async function checkOnosHealth() {
   try {
     await onos.get("/devices")
     return { connected: true, error: null }
   } catch (error) {
     return { connected: false, error: error.message }
+  }
+}
+
+async function generateLiveAlerts() {
+  const onosStatus = await checkOnosHealth()
+
+  if (!onosStatus.connected) {
+    return buildDerivedAlertsFromSnapshot({
+      controllerError: onosStatus.error,
+    })
+  }
+
+  const [devices, links, flows] = await Promise.all([
+    fetchOnosDevicesRaw(),
+    fetchOnosLinksRaw(),
+    fetchOnosFlowsRaw(),
+  ])
+
+  const portsByDevice = await Promise.all(
+    devices.map(async (device) => {
+      try {
+        const ports = await fetchOnosPortsRaw(device.id)
+        return { deviceId: device.id, ports }
+      } catch {
+        return { deviceId: device.id, ports: [] }
+      }
+    })
+  )
+
+  return buildDerivedAlertsFromSnapshot({
+    devices,
+    links,
+    flows,
+    portsByDevice,
+  })
+}
+
+async function syncDerivedAlerts() {
+  if (alertSyncPromise) {
+    return alertSyncPromise
+  }
+
+  alertSyncPromise = (async () => {
+    const liveAlerts = await generateLiveAlerts()
+
+    if (!(await refreshDatabaseStatus())) {
+      const store = readLocalStore()
+      const existingOpenAlerts = store.alerts.filter((alert) => !alert.resolved)
+      const existingBySignature = new Map(
+        existingOpenAlerts.map((alert) => [
+          buildAlertSignature({
+            alert_type: alert.alert_type,
+            device_id: alert.device_id,
+            message: alert.message,
+          }),
+          alert,
+        ])
+      )
+
+      const activeSignatures = new Set()
+
+      for (const alert of liveAlerts) {
+        const signature = buildAlertSignature(alert)
+        activeSignatures.add(signature)
+
+        if (!existingBySignature.has(signature)) {
+          store.alerts.push({
+            id: nextLocalId(store.alerts),
+            device_id: alert.device_id,
+            alert_type: alert.alert_type,
+            severity: alert.severity,
+            message: alert.message,
+            resolved: false,
+            created_at: new Date().toISOString(),
+            resolved_at: null,
+          })
+        }
+      }
+
+      for (const alert of existingOpenAlerts) {
+        const signature = buildAlertSignature({
+          alert_type: alert.alert_type,
+          device_id: alert.device_id,
+          message: alert.message,
+        })
+
+        if (!activeSignatures.has(signature)) {
+          alert.resolved = true
+          alert.resolved_at = new Date().toISOString()
+        }
+      }
+
+      const updatedStore = writeLocalStore(store)
+
+      return {
+        source: "local-store",
+        alerts: updatedStore.alerts
+          .slice()
+          .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+          .map(formatAlertRow),
+      }
+    }
+
+    if (databaseMode === "embedded-pgmem") {
+      await syncDevices()
+    }
+
+    const client = await pool.connect()
+
+    try {
+      await client.query("BEGIN")
+
+      const existingResult = await client.query(
+        `SELECT id, device_id, alert_type, severity, message
+         FROM alerts
+         WHERE resolved = false`
+      )
+
+      const existingBySignature = new Map(
+        existingResult.rows.map((row) => [
+          buildAlertSignature({
+            alert_type: row.alert_type,
+            device_id: row.device_id,
+            message: row.message,
+          }),
+          row,
+        ])
+      )
+
+      const activeSignatures = new Set()
+
+      for (const alert of liveAlerts) {
+        const signature = buildAlertSignature(alert)
+        activeSignatures.add(signature)
+
+        if (!existingBySignature.has(signature)) {
+          await client.query(
+            `INSERT INTO alerts (device_id, alert_type, severity, message, resolved, created_at)
+             VALUES ($1, $2, $3, $4, false, NOW())`,
+            [alert.device_id, alert.alert_type, alert.severity, alert.message]
+          )
+        }
+      }
+
+      const staleAlertIds = existingResult.rows
+        .filter((row) => {
+          const signature = buildAlertSignature({
+            alert_type: row.alert_type,
+            device_id: row.device_id,
+            message: row.message,
+          })
+
+          return !activeSignatures.has(signature)
+        })
+        .map((row) => row.id)
+
+      if (staleAlertIds.length > 0) {
+        await client.query(
+          `UPDATE alerts
+           SET resolved = true,
+               resolved_at = NOW()
+           WHERE id = ANY($1::int[])`,
+          [staleAlertIds]
+        )
+      }
+
+      await client.query("COMMIT")
+    } catch (error) {
+      await client.query("ROLLBACK")
+      throw error
+    } finally {
+      client.release()
+    }
+
+    const alertsResult = await pool.query(
+      `SELECT *
+       FROM alerts
+       ORDER BY created_at DESC, id DESC`
+    )
+
+    return {
+      source: "database",
+      alerts: alertsResult.rows.map(formatAlertRow),
+    }
+  })()
+
+  try {
+    return await alertSyncPromise
+  } finally {
+    alertSyncPromise = null
   }
 }
 
@@ -437,6 +1681,15 @@ async function getLiveDashboardStats() {
   )
 
   const allPorts = portGroups.flat()
+  const derivedAlerts = buildDerivedAlertsFromSnapshot({
+    devices,
+    links,
+    flows,
+    portsByDevice: portGroups.map((ports, index) => ({
+      deviceId: devices[index]?.id || `device-${index}`,
+      ports,
+    })),
+  })
 
   return {
     total_devices: devices.length,
@@ -446,7 +1699,7 @@ async function getLiveDashboardStats() {
     live_ports: allPorts.filter((port) => port.isLive).length,
     enabled_ports: allPorts.filter((port) => port.isEnabled).length,
     total_flows: flows.length,
-    active_alerts: 0,
+    active_alerts: derivedAlerts.length,
     active_links: links.filter((link) => String(link.state || "ACTIVE").toUpperCase() === "ACTIVE").length,
   }
 }
@@ -479,6 +1732,106 @@ async function getLiveDeviceMetrics() {
   )
 }
 
+app.post("/api/auth/login", async (req, res) => {
+  const identifier = String(req.body?.identifier || "").trim()
+  const password = String(req.body?.password || "")
+
+  if (!identifier || !password) {
+    return res.status(400).json({
+      error: "Missing credentials",
+      message: "Identifier and password are required",
+    })
+  }
+
+  if (!(await refreshDatabaseStatus())) {
+    const localStore = readLocalStore()
+    const localUser = localStore.users.find(
+      (user) =>
+        String(user.email || "").toLowerCase() === identifier.toLowerCase() ||
+        String(user.username || "").toLowerCase() === identifier.toLowerCase()
+    )
+
+    if (!localUser) {
+      return res.status(401).json({
+        error: "Invalid credentials",
+        message: "Email/username or password is incorrect",
+      })
+    }
+
+    const matchesPassword = await bcrypt.compare(password, localUser.password_hash)
+
+    if (!matchesPassword || !localUser.is_active) {
+      return res.status(401).json({
+        error: "Invalid credentials",
+        message: "Email/username or password is incorrect",
+      })
+    }
+
+    localUser.last_login = new Date().toISOString()
+    localUser.updated_at = new Date().toISOString()
+    writeLocalStore(localStore)
+
+    const fallbackUser = {
+      ...localUser,
+      last_login: new Date().toISOString(),
+    }
+    const token = signJwtForUser(fallbackUser)
+
+    return res.json({
+      token,
+      expiresIn: JWT_EXPIRES_IN,
+      user: sanitizeUser(fallbackUser),
+      degradedMode: true,
+    })
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT *
+       FROM users
+       WHERE LOWER(email) = LOWER($1) OR LOWER(username) = LOWER($1)
+       LIMIT 1`,
+      [identifier]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        error: "Invalid credentials",
+        message: "Email/username or password is incorrect",
+      })
+    }
+
+    const user = result.rows[0]
+    const passwordMatches = await bcrypt.compare(password, user.password_hash)
+
+    if (!passwordMatches || !user.is_active) {
+      return res.status(401).json({
+        error: "Invalid credentials",
+        message: "Email/username or password is incorrect",
+      })
+    }
+
+    await pool.query(
+      "UPDATE users SET last_login = NOW(), updated_at = NOW() WHERE id = $1",
+      [user.id]
+    )
+
+    const updatedUser = { ...user, last_login: new Date().toISOString() }
+    const token = signJwtForUser(updatedUser)
+
+    return res.json({
+      token,
+      expiresIn: JWT_EXPIRES_IN,
+      user: sanitizeUser(updatedUser),
+    })
+  } catch (error) {
+    return res.status(500).json({
+      error: "Login failed",
+      message: error.message,
+    })
+  }
+})
+
 app.get("/api/health", async (_req, res) => {
   const onosStatus = await checkOnosHealth()
   const databaseConnected = await refreshDatabaseStatus()
@@ -499,13 +1852,156 @@ app.get("/api/health", async (_req, res) => {
     database: {
       connected: databaseConnected,
       error: lastDatabaseError,
+      mode: databaseConnected ? databaseMode : "unavailable",
     },
     sync: {
       enabled: AUTO_SYNC_ENABLED,
       intervalMs: AUTO_SYNC_INTERVAL,
       inProgress: syncInProgress,
     },
+    auth: {
+      jwtConfigured: Boolean(JWT_SECRET),
+      bootstrapAdmin: DEFAULT_ADMIN_USER.email,
+      databaseBacked: databaseConnected,
+      localStoreBacked: !databaseConnected,
+    },
   })
+})
+
+app.use("/api", (req, res, next) => {
+  if (req.path === "/health" || (req.path === "/auth/login" && req.method === "POST")) {
+    return next()
+  }
+
+  return authenticateRequest(req, res, next)
+})
+
+app.get("/api/auth/me", (req, res) => {
+  res.json({
+    user: sanitizeUser(req.currentUser),
+  })
+})
+
+app.get("/api/users", requireRole("admin"), async (_req, res) => {
+  if (!(await refreshDatabaseStatus())) {
+    const localStore = readLocalStore()
+
+    return res.json({
+      total: localStore.users.length,
+      users: localStore.users
+        .slice()
+        .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+        .map(sanitizeUser),
+    })
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT id, username, email, full_name, role, is_active, last_login, created_at
+       FROM users
+       ORDER BY created_at DESC, username ASC`
+    )
+
+    res.json({
+      total: result.rows.length,
+      users: result.rows.map(sanitizeUser),
+    })
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to fetch users",
+      message: error.message,
+    })
+  }
+})
+
+app.post("/api/users", requireRole("admin"), async (req, res) => {
+  const username = String(req.body?.username || "").trim()
+  const email = String(req.body?.email || "").trim()
+  const fullName = String(req.body?.fullName || "").trim()
+  const password = String(req.body?.password || "")
+  const role = String(req.body?.role || "operator").trim().toLowerCase()
+
+  if (!username || !email || !fullName || !password) {
+    return res.status(400).json({
+      error: "Missing user data",
+      message: "Username, email, full name, and password are required",
+    })
+  }
+
+  if (!["admin", "operator", "viewer"].includes(role)) {
+    return res.status(400).json({
+      error: "Invalid role",
+      message: "Role must be admin, operator, or viewer",
+    })
+  }
+
+  if (!(await refreshDatabaseStatus())) {
+    const localStore = readLocalStore()
+    const duplicateUser = localStore.users.find(
+      (user) =>
+        String(user.email || "").toLowerCase() === email.toLowerCase() ||
+        String(user.username || "").toLowerCase() === username.toLowerCase()
+    )
+
+    if (duplicateUser) {
+      return res.status(409).json({
+        error: "Duplicate user",
+        message: "Username or email already exists",
+      })
+    }
+
+    const passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS)
+    const createdUser = {
+      id: nextLocalId(localStore.users),
+      username,
+      email,
+      full_name: fullName,
+      role,
+      password_hash: passwordHash,
+      is_active: true,
+      last_login: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    localStore.users.push(createdUser)
+    writeLocalStore(localStore)
+
+    return res.status(201).json({
+      message: "User created successfully",
+      user: sanitizeUser(createdUser),
+      degradedMode: true,
+    })
+  }
+
+  try {
+    const passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS)
+    const result = await pool.query(
+      `INSERT INTO users (
+         username, email, full_name, role, password_hash, is_active, created_at, updated_at
+       )
+       VALUES ($1, $2, $3, $4, $5, true, NOW(), NOW())
+       RETURNING id, username, email, full_name, role, is_active, last_login, created_at`,
+      [username, email, fullName, role, passwordHash]
+    )
+
+    res.status(201).json({
+      message: "User created successfully",
+      user: sanitizeUser(result.rows[0]),
+    })
+  } catch (error) {
+    if (error.code === "23505") {
+      return res.status(409).json({
+        error: "Duplicate user",
+        message: "Username or email already exists",
+      })
+    }
+
+    return res.status(500).json({
+      error: "Failed to create user",
+      message: error.message,
+    })
+  }
 })
 
 app.get("/api/devices", async (_req, res) => {
@@ -593,64 +2089,62 @@ app.get("/api/devices/:deviceId/ports", async (req, res) => {
   }
 })
 
-app.get("/api/topology", async (_req, res) => {
+app.get("/api/topology", async (req, res) => {
+  const sourceMode = normalizeTopologySourceMode(req.query?.source)
   const databaseConnected = await refreshDatabaseStatus()
 
-  if (databaseConnected) {
+  if ((sourceMode === "database" || sourceMode === "auto") && databaseConnected) {
     try {
-      const devicesResult = await pool.query("SELECT * FROM devices ORDER BY device_id ASC")
-      const linksResult = await pool.query(
-        "SELECT * FROM topology_links ORDER BY last_updated DESC, source_device ASC"
-      )
+      const snapshot = await getDatabaseTopologySnapshot()
 
-      if (devicesResult.rows.length > 0) {
-        return res.json({
-          source: "database",
-          nodes: devicesResult.rows.map((row) => ({
-            id: row.device_id,
-            label: row.device_id.split(":")[1] || row.device_id,
-            type: normalizeDeviceType(row.type),
-            available: row.available,
-            status: row.available ? "active" : "inactive",
-          })),
-          edges: linksResult.rows.map((row) => ({
-            id: `${row.source_device}-${row.target_device}-${row.source_port || "na"}-${row.target_port || "na"}`,
-            source: row.source_device,
-            target: row.target_device,
-            label: row.link_type || "",
-            status: String(row.state || "ACTIVE").toLowerCase() === "active" ? "active" : "inactive",
-          })),
-        })
+      if (snapshot) {
+        return res.json(snapshot)
       }
     } catch (error) {
       console.error("[API] Database topology fallback:", error.message)
     }
   }
 
+  if (sourceMode === "database") {
+    return res.status(404).json({
+      error: "Topology snapshot unavailable",
+      message: databaseConnected
+        ? "No topology snapshot was found in the database"
+        : "Database topology mode is unavailable because the database is not connected",
+    })
+  }
+
   try {
-    const [devices, links] = await Promise.all([fetchOnosDevicesRaw(), fetchOnosLinksRaw()])
+    const [devices, links, hosts] = await Promise.all([
+      fetchOnosDevicesRaw(),
+      fetchOnosLinksRaw(),
+      fetchOnosHostsRaw(),
+    ])
 
     res.json({
       source: "onos",
-      nodes: devices.map((device) => ({
-        id: device.id,
-        label: device.id.split(":")[1] || device.id,
-        type: normalizeDeviceType(device.type),
-        available: device.available !== false,
-        status: device.available !== false ? "active" : "inactive",
-      })),
-      edges: links.map((link) => ({
-        id: `${link.src.device}-${link.dst.device}-${link.src.port || "na"}-${link.dst.port || "na"}`,
-        source: link.src.device,
-        target: link.dst.device,
-        label: link.type || "",
-        status: String(link.state || "ACTIVE").toLowerCase() === "active" ? "active" : "inactive",
-      })),
+      nodes: [...devices.map(mapOnosDeviceToTopologyNode), ...hosts.map(mapOnosHostToTopologyNode)],
+      edges: [...links.map(mapOnosLinkToTopologyEdge), ...hosts.flatMap(mapOnosHostToTopologyEdges)],
     })
   } catch (error) {
+    if (sourceMode === "auto" && databaseConnected) {
+      try {
+        const snapshot = await getDatabaseTopologySnapshot()
+
+        if (snapshot) {
+          return res.json(snapshot)
+        }
+      } catch (databaseError) {
+        console.error("[API] Auto topology fallback failed:", databaseError.message)
+      }
+    }
+
     res.status(500).json({
       error: "Failed to fetch topology",
-      message: error.message,
+      message:
+        sourceMode === "database"
+          ? "Database topology snapshot is not available"
+          : error.message,
     })
   }
 })
@@ -703,7 +2197,10 @@ app.get("/api/flows", async (_req, res) => {
 
 app.post("/api/flows/:deviceId", async (req, res) => {
   try {
-    const response = await onos.post(`/flows/${req.params.deviceId}`, req.body)
+    const appId = String(req.query.appId || req.body?.appId || "org.platformsdn.app")
+    const response = await onos.post(`/flows/${req.params.deviceId}`, req.body, {
+      params: { appId },
+    })
     void syncFlows()
 
     res.status(201).json({
@@ -745,7 +2242,306 @@ app.delete("/api/flows/:deviceId/:flowId", async (req, res) => {
   }
 })
 
+app.get("/api/alerts", async (req, res) => {
+  const statusFilter = String(req.query.status || "all").toLowerCase()
+  const severityFilter = String(req.query.severity || "all").toLowerCase()
+  const limit = Math.max(1, Math.min(500, Number.parseInt(String(req.query.limit || "200"), 10) || 200))
+
+  try {
+    const snapshot = await syncDerivedAlerts()
+    let alerts = snapshot.alerts
+
+    if (statusFilter === "open") {
+      alerts = alerts.filter((alert) => !alert.resolved)
+    } else if (statusFilter === "resolved") {
+      alerts = alerts.filter((alert) => alert.resolved)
+    }
+
+    if (severityFilter !== "all") {
+      alerts = alerts.filter((alert) => alert.severity === severityFilter)
+    }
+
+    res.json({
+      source: snapshot.source,
+      total: alerts.length,
+      summary: summarizeAlerts(snapshot.alerts),
+      alerts: alerts.slice(0, limit),
+    })
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to fetch alerts",
+      message: error.message,
+    })
+  }
+})
+
+app.post("/api/alerts/:id/resolve", requireRole("admin", "operator"), async (req, res) => {
+  if (!(await refreshDatabaseStatus())) {
+    const localStore = readLocalStore()
+    const targetAlert = localStore.alerts.find((alert) => String(alert.id) === String(req.params.id))
+
+    if (!targetAlert) {
+      return res.status(404).json({
+        error: "Alert not found",
+        message: "No alert exists with this identifier",
+      })
+    }
+
+    targetAlert.resolved = true
+    targetAlert.resolved_at = targetAlert.resolved_at || new Date().toISOString()
+    writeLocalStore(localStore)
+
+    return res.json({
+      message: "Alert resolved successfully",
+      alert: formatAlertRow(targetAlert),
+      degradedMode: true,
+    })
+  }
+
+  try {
+    const result = await pool.query(
+      `UPDATE alerts
+       SET resolved = true,
+           resolved_at = COALESCE(resolved_at, NOW())
+       WHERE id = $1
+       RETURNING *`,
+      [req.params.id]
+    )
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: "Alert not found",
+        message: "No alert exists with this identifier",
+      })
+    }
+
+    return res.json({
+      message: "Alert resolved successfully",
+      alert: formatAlertRow(result.rows[0]),
+    })
+  } catch (error) {
+    return res.status(500).json({
+      error: "Failed to resolve alert",
+      message: error.message,
+    })
+  }
+})
+
+app.get("/api/dashboard/overview", async (_req, res) => {
+  try {
+    const [systemData, clusterNodes, applications, hosts, intentsSummary, devices, metricsEntries, vplsItems] = await Promise.all([
+      fetchOnosSystemRaw().catch(() => ({})),
+      fetchOnosClusterRaw().catch(() => []),
+      fetchOnosApplicationsRaw().catch(() => []),
+      fetchOnosHostsRaw().catch(() => []),
+      fetchOnosIntentMiniSummaryRaw().catch(() => ({})),
+      fetchOnosDevicesRaw().catch(() => []),
+      fetchOnosMetricsRaw().catch(() => []),
+      fetchOnosVplsRaw().catch(() => []),
+    ])
+
+    const mastership = await buildMastershipSnapshot(devices, clusterNodes).catch(() => ({
+      totalDevices: devices.length,
+      sampledDevices: 0,
+      resolvedDevices: 0,
+      unresolvedDevices: 0,
+      leaders: [],
+      devices: [],
+    }))
+    const observability = buildMetricsSnapshot(metricsEntries)
+    const vpls = buildVplsSnapshot(vplsItems)
+
+    const applicationItems = await Promise.all(
+      applications.slice(0, 8).map(async (application) => {
+        const name = application.name || application.id || "unknown"
+        let health = null
+
+        try {
+          health = await fetchOnosApplicationHealthRaw(name)
+        } catch {
+          health = null
+        }
+
+        return {
+          name,
+          state: application.state || application.status || "unknown",
+          version: application.version || null,
+          health,
+        }
+      })
+    )
+
+    const overview = {
+      source: "onos",
+      controller: {
+        version: systemData.version || systemData.onosVersion || "Unknown",
+        build: systemData.build || systemData.buildNumber || null,
+        uptime:
+          systemData.uptime !== undefined && systemData.uptime !== null
+            ? String(systemData.uptime)
+            : systemData.upTime !== undefined && systemData.upTime !== null
+              ? String(systemData.upTime)
+              : null,
+        system: extractControllerRuntime(systemData),
+      },
+      cluster: {
+        total: clusterNodes.length,
+        online: clusterNodes.filter(isClusterNodeOnline).length,
+        nodes: clusterNodes.map((node) => ({
+          id: node.id || node.nodeId || node.ip || "unknown",
+          ip: node.ip || node.address || null,
+          state: node.state || node.status || "unknown",
+        })),
+      },
+      applications: {
+        total: applications.length,
+        active: applications.filter(isApplicationActive).length,
+        items: applicationItems,
+      },
+      hosts: {
+        total: hosts.length,
+      },
+      intents: {
+        summary: intentsSummary,
+      },
+      mastership,
+      observability,
+      vpls,
+    }
+
+    return res.json(overview)
+  } catch (error) {
+    return res.status(500).json({
+      error: "Failed to fetch dashboard overview",
+      message: error.message,
+    })
+  }
+})
+
+app.get("/api/dashboard/link-load", async (_req, res) => {
+  try {
+    const entries = await fetchOnosLinkLoadRaw()
+
+    const normalized = entries.slice(0, 12).map((entry, index) => {
+      const device = entry.device || entry.deviceId || entry.src || entry.source || entry.elementId || "unknown"
+      const port = entry.port || entry.portNumber || entry.srcPort || entry.sourcePort || "?"
+      const utilization =
+        entry.utilization ??
+        entry.load ??
+        entry.rate ??
+        entry.linkLoad ??
+        entry.latest ??
+        entry.value ??
+        null
+
+      return {
+        id: entry.id || `${device}-${port}-${index}`,
+        device: String(device),
+        port: String(port),
+        utilization: typeof utilization === "number" ? utilization : Number(utilization) || null,
+        raw: entry,
+      }
+    })
+
+    return res.json({
+      source: "onos",
+      total: normalized.length,
+      links: normalized,
+    })
+  } catch (error) {
+    return res.status(500).json({
+      error: "Failed to fetch link load telemetry",
+      message: error.message,
+    })
+  }
+})
+
+app.get("/api/services/vpls", async (_req, res) => {
+  try {
+    const items = await fetchOnosVplsRaw()
+
+    return res.json({
+      source: "onos",
+      total: items.length,
+      vpls: items,
+    })
+  } catch (error) {
+    return res.status(500).json({
+      error: "Failed to fetch VPLS services",
+      message: error.message,
+    })
+  }
+})
+
+app.post("/api/services/vpls", requireRole("admin", "operator"), async (req, res) => {
+  try {
+    const response = await onosVpls.post("", req.body)
+
+    return res.status(201).json({
+      message: "VPLS service created successfully",
+      result: response.data,
+    })
+  } catch (error) {
+    return res.status(500).json({
+      error: "Failed to create VPLS service",
+      message: error.message,
+    })
+  }
+})
+
+app.delete("/api/services/vpls/:name", requireRole("admin", "operator"), async (req, res) => {
+  try {
+    await onosVpls.delete(`/${encodeURIComponent(req.params.name)}`)
+
+    return res.json({
+      message: "VPLS service deleted successfully",
+    })
+  } catch (error) {
+    return res.status(500).json({
+      error: "Failed to delete VPLS service",
+      message: error.message,
+    })
+  }
+})
+
+app.post("/api/services/vpls/:name/interfaces", requireRole("admin", "operator"), async (req, res) => {
+  try {
+    const response = await onosVpls.post(`/interfaces/${encodeURIComponent(req.params.name)}`, req.body)
+
+    return res.status(201).json({
+      message: "VPLS interface added successfully",
+      result: response.data,
+    })
+  } catch (error) {
+    return res.status(500).json({
+      error: "Failed to add VPLS interface",
+      message: error.message,
+    })
+  }
+})
+
+app.delete("/api/services/vpls/:name/interfaces/:interfaceName", requireRole("admin", "operator"), async (req, res) => {
+  try {
+    await onosVpls.delete(`/interface/${encodeURIComponent(req.params.name)}/${encodeURIComponent(req.params.interfaceName)}`)
+
+    return res.json({
+      message: "VPLS interface deleted successfully",
+    })
+  } catch (error) {
+    return res.status(500).json({
+      error: "Failed to delete VPLS interface",
+      message: error.message,
+    })
+  }
+})
+
 app.get("/api/dashboard/stats", async (_req, res) => {
+  try {
+    await syncDerivedAlerts()
+  } catch (error) {
+    console.error("[API] Failed to refresh alerts for dashboard stats:", error.message)
+  }
+
   const databaseConnected = await refreshDatabaseStatus()
 
   if (databaseConnected) {
@@ -765,22 +2561,30 @@ app.get("/api/dashboard/stats", async (_req, res) => {
 
       if (stats.rows.length > 0) {
         const row = stats.rows[0]
+        const normalizedStats = {
+          total_devices: toNumber(row.total_devices),
+          online_devices: toNumber(row.online_devices),
+          offline_devices: toNumber(row.offline_devices),
+          total_ports: toNumber(row.total_ports),
+          live_ports: toNumber(row.live_ports),
+          enabled_ports: toNumber(row.enabled_ports),
+          total_flows: toNumber(row.total_flows),
+          active_alerts: toNumber(row.active_alerts),
+          active_links: toNumber(row.active_links),
+        }
 
-        return res.json({
-          timestamp: new Date().toISOString(),
-          source: "database",
-          stats: {
-            total_devices: toNumber(row.total_devices),
-            online_devices: toNumber(row.online_devices),
-            offline_devices: toNumber(row.offline_devices),
-            total_ports: toNumber(row.total_ports),
-            live_ports: toNumber(row.live_ports),
-            enabled_ports: toNumber(row.enabled_ports),
-            total_flows: toNumber(row.total_flows),
-            active_alerts: toNumber(row.active_alerts),
-            active_links: toNumber(row.active_links),
-          },
-        })
+        const hasNetworkInventory =
+          normalizedStats.total_devices > 0 ||
+          normalizedStats.total_ports > 0 ||
+          normalizedStats.total_flows > 0
+
+        if (hasNetworkInventory || databaseMode !== "embedded-pgmem") {
+          return res.json({
+            timestamp: new Date().toISOString(),
+            source: "database",
+            stats: normalizedStats,
+          })
+        }
       }
     } catch (error) {
       console.error("[API] Database dashboard stats fallback:", error.message)
@@ -936,15 +2740,28 @@ async function startServer() {
   const databaseConnected = await refreshDatabaseStatus()
 
   if (databaseConnected) {
+    databaseMode = "postgresql"
     console.log("[DB] PostgreSQL connection ready")
+    await ensureAuthSchema()
   } else {
     console.warn("[DB] PostgreSQL unavailable at startup:", lastDatabaseError)
+    try {
+      await enableEmbeddedDatabase()
+      console.log("[DB] Embedded pg-mem database initialized")
+      await ensureAuthSchema()
+    } catch (error) {
+      console.error("[DB] Embedded database initialization failed:", error.message)
+      writeLocalStore(readLocalStore())
+      console.log(`[LOCAL-STORE] Using ${LOCAL_STORE_PATH} for auth and alerts persistence`)
+    }
   }
 
   app.listen(PORT, () => {
     console.log(`[OK] SDN Platform backend running on port ${PORT}`)
     console.log(`[ONOS] Controller: ${ONOS_URL}`)
     console.log(`[API] Base: http://localhost:${PORT}/api`)
+    console.log(`[DB] Mode: ${databaseMode}`)
+    console.log(`[AUTH] Default admin: ${DEFAULT_ADMIN_USER.email}`)
     startAutoSync()
   })
 }

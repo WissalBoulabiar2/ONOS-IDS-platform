@@ -1,144 +1,228 @@
 "use client"
 
-import React, { useCallback, useEffect, useState } from "react"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts"
 import Navigation from "@/components/navigation"
+import { DashboardChatbot } from "@/components/dashboard-chatbot"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { RefreshCw, Wifi, Activity, AlertCircle, TrendingUp, Server, Download } from "lucide-react"
 import { useExportPDF } from "@/hooks/useExportPDF"
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
-
-interface DashboardStats {
-  total_devices: number
-  online_devices: number
-  offline_devices: number
-  total_ports: number
-  live_ports: number
-  enabled_ports: number
-  total_flows: number
-  active_alerts: number
-  active_links: number
-}
-
-interface DeviceMetric {
-  device_id: string
-  type: string
-  available: boolean
-  live_ports: number
-  enabled_ports: number
-  total_ports: number
-  total_rx_bytes: number
-  total_tx_bytes: number
-  last_updated: string
-}
-
-interface DashboardStatsResponse {
-  source: "database" | "onos"
-  timestamp: string
-  stats: DashboardStats
-}
-
-interface DeviceMetricsResponse {
-  source: "database" | "onos"
-  metrics: DeviceMetric[]
-}
+import {
+  sdnApi,
+  type ApiAlert,
+  type DashboardOverviewResponse,
+  type DashboardStatsResponse,
+  type DeviceMetricsResponse,
+  type LinkLoadResponse,
+} from "@/services/api"
+import {
+  Activity,
+  AlertCircle,
+  AppWindow,
+  BellRing,
+  Cpu,
+  Download,
+  GitBranch,
+  Network,
+  RefreshCw,
+  Server,
+  TrendingUp,
+  Users,
+} from "lucide-react"
 
 const COLORS = ["#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"]
+const DASHBOARD_REFRESH_INTERVAL_MS = 15000
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [devices, setDevices] = useState<DeviceMetric[]>([])
+  const [statsResponse, setStatsResponse] = useState<DashboardStatsResponse | null>(null)
+  const [metricsResponse, setMetricsResponse] = useState<DeviceMetricsResponse | null>(null)
+  const [overview, setOverview] = useState<DashboardOverviewResponse | null>(null)
+  const [linkLoad, setLinkLoad] = useState<LinkLoadResponse["links"]>([])
+  const [recentAlerts, setRecentAlerts] = useState<ApiAlert[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [lastSync, setLastSync] = useState<string | null>(null)
+  const [lastSyncAt, setLastSyncAt] = useState<number | null>(null)
+  const [clockNow, setClockNow] = useState(() => Date.now())
   const [dataSource, setDataSource] = useState<"database" | "onos" | "mixed">("onos")
   const [exporting, setExporting] = useState(false)
+  const refreshInFlightRef = useRef(false)
   const { exportToPDF } = useExportPDF()
 
-  const fetchDashboardData = useCallback(async () => {
+  const fetchDashboardData = useCallback(async (background = false) => {
+    if (refreshInFlightRef.current) {
+      return
+    }
+
     try {
-      setLoading(true)
+      refreshInFlightRef.current = true
+
+      if (background) {
+        setRefreshing(true)
+      } else {
+        setLoading(true)
+      }
+
       setError(null)
 
-      const [statsRes, metricsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/dashboard/stats`),
-        fetch(`${API_BASE_URL}/metrics/devices`),
+      const [statsData, metricsData, overviewData, alertsData, linkLoadData] = await Promise.all([
+        sdnApi.getDashboardStats(),
+        sdnApi.getDeviceMetrics(),
+        sdnApi.getDashboardOverview(),
+        sdnApi.getAlerts({ status: "all", limit: 5 }),
+        sdnApi.getLinkLoad().catch(() => ({ source: "onos" as const, total: 0, links: [] })),
       ])
 
-      if (!statsRes.ok) throw new Error("Failed to fetch stats")
-      if (!metricsRes.ok) throw new Error("Failed to fetch metrics")
+      setStatsResponse(statsData)
+      setMetricsResponse(metricsData)
+      setOverview(overviewData)
+      setRecentAlerts(alertsData.alerts)
+      setLinkLoad(linkLoadData.links)
 
-      const statsData: DashboardStatsResponse = await statsRes.json()
-      const metricsData: DeviceMetricsResponse = await metricsRes.json()
-
-      setStats(statsData.stats)
-      setDevices(metricsData.metrics)
-      setDataSource(
-        statsData.source === metricsData.source ? statsData.source : "mixed"
-      )
-      setLastSync(new Date(statsData.timestamp).toLocaleTimeString())
+      const sources = new Set([statsData.source, metricsData.source, alertsData.source, linkLoadData.source])
+      setDataSource(sources.size === 1 ? (Array.from(sources)[0] as "database" | "onos") : "mixed")
+      setLastSyncAt(Date.now())
     } catch (err) {
       console.error("Error fetching dashboard data:", err)
-      setError(err instanceof Error ? err.message : "Failed to fetch data")
+      setError(err instanceof Error ? err.message : "Failed to fetch dashboard data")
     } finally {
+      refreshInFlightRef.current = false
       setLoading(false)
+      setRefreshing(false)
     }
   }, [])
 
   useEffect(() => {
     fetchDashboardData()
-    const interval = setInterval(fetchDashboardData, 5000)
+    const interval = setInterval(() => {
+      fetchDashboardData(true)
+    }, DASHBOARD_REFRESH_INTERVAL_MS)
+
     return () => clearInterval(interval)
   }, [fetchDashboardData])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setClockNow(Date.now())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
 
   const handleExportPDF = async () => {
     try {
       setExporting(true)
       await exportToPDF("dashboard-container", `SDN-Dashboard-${new Date().toISOString().split("T")[0]}.pdf`)
-    } catch (error) {
-      console.error("Failed to export PDF:", error)
+    } catch (exportError) {
+      console.error("Failed to export PDF:", exportError)
     } finally {
       setExporting(false)
     }
   }
 
-  const deviceTypeData = devices.reduce<{ name: string; value: number }[]>((acc, device) => {
-    const existing = acc.find((entry) => entry.name === device.type)
-    if (existing) {
-      existing.value += 1
-    } else {
-      acc.push({ name: device.type, value: 1 })
+  const stats = statsResponse?.stats
+  const devices = metricsResponse?.metrics || []
+
+  const deviceTypeData = useMemo(
+    () =>
+      devices.reduce<{ name: string; value: number }[]>((acc, device) => {
+        const existing = acc.find((entry) => entry.name === device.type)
+        if (existing) {
+          existing.value += 1
+        } else {
+          acc.push({ name: device.type, value: 1 })
+        }
+        return acc
+      }, []),
+    [devices]
+  )
+
+  const portStatusData = useMemo(
+    () =>
+      stats
+        ? [
+            { name: "Live", value: stats.live_ports, color: "#10b981" },
+            {
+              name: "Enabled standby",
+              value: Math.max(stats.enabled_ports - stats.live_ports, 0),
+              color: "#f59e0b",
+            },
+            {
+              name: "Disabled",
+              value: Math.max(stats.total_ports - stats.enabled_ports, 0),
+              color: "#ef4444",
+            },
+          ]
+        : [],
+    [stats]
+  )
+
+  const trafficData = useMemo(
+    () =>
+      devices.slice(0, 8).map((device) => ({
+        name: device.device_id.split(":").pop() || device.device_id,
+        rx: Math.round(device.total_rx_bytes / (1024 * 1024)),
+        tx: Math.round(device.total_tx_bytes / (1024 * 1024)),
+      })),
+    [devices]
+  )
+
+  const intentSummaryEntries = useMemo(() => {
+    if (!overview?.intents?.summary) {
+      return []
     }
-    return acc
-  }, [])
 
-  const portStatusData = stats ? [
-    { name: "Live", value: stats.live_ports, color: "#10b981" },
-    { name: "Enabled standby", value: Math.max(stats.enabled_ports - stats.live_ports, 0), color: "#f59e0b" },
-    { name: "Disabled", value: Math.max(stats.total_ports - stats.enabled_ports, 0), color: "#ef4444" },
-  ] : []
+    return Object.entries(overview.intents.summary)
+      .filter(([, value]) => ["string", "number", "boolean"].includes(typeof value))
+      .slice(0, 6)
+  }, [overview])
 
-  const trafficData = devices.slice(0, 8).map((device) => ({
-    name: device.device_id.split(":").pop() || device.device_id,
-    rx: Math.round(device.total_rx_bytes / (1024 * 1024)),
-    tx: Math.round(device.total_tx_bytes / (1024 * 1024)),
-  }))
+  const topLoadedLinks = useMemo(
+    () =>
+      [...linkLoad]
+        .filter((entry) => entry.utilization !== null)
+        .sort((left, right) => (right.utilization ?? 0) - (left.utilization ?? 0))
+        .slice(0, 6),
+    [linkLoad]
+  )
+
+  const hottestLinkValue = useMemo(
+    () => topLoadedLinks.reduce((maxValue, entry) => Math.max(maxValue, entry.utilization ?? 0), 0),
+    [topLoadedLinks]
+  )
+
+  const metricHighlights = overview?.observability.highlighted || []
+  const vplsServices = overview?.vpls.services || []
+
+  const lastSyncLabel = useMemo(
+    () => formatRelativeSync(lastSyncAt, clockNow),
+    [clockNow, lastSyncAt]
+  )
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950">
       <Navigation />
 
       <main id="dashboard-container" className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* HERO SECTION */}
         <section className="mb-8 rounded-3xl border border-gray-200 bg-gradient-to-br from-slate-950 via-cyan-950 to-slate-900 p-6 text-white shadow-xl sm:p-8">
-          <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
-            <div>
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
               <div className="mb-4 flex flex-wrap gap-2">
                 <Badge className="border-cyan-400/20 bg-cyan-400/10 text-cyan-200">
-                  Real-time Monitoring
+                  Operations Center
                 </Badge>
                 <Badge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
                   {dataSource === "database"
@@ -148,107 +232,386 @@ export default function DashboardPage() {
                       : "Mixed sources"}
                 </Badge>
               </div>
-              <h1 className="mb-3 text-4xl font-bold tracking-tight sm:text-5xl">SDN Dashboard</h1>
+              <h1 className="mb-3 text-4xl font-bold tracking-tight sm:text-5xl">PlatformSDN Dashboard</h1>
               <p className="max-w-2xl text-sm text-slate-300 sm:text-base">
-                Complete network visibility with ONOS data synchronized every 5 seconds to PostgreSQL
+                Unified controller, topology, traffic, application, and incident visibility for the ONOS platform.
               </p>
             </div>
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
-              <p className="mb-2 text-xs uppercase tracking-[0.25em] text-cyan-200">Last Sync</p>
-              <p className="text-lg font-semibold">{lastSync || "Syncing..."}</p>
-              <div className="mt-3 flex gap-2">
+
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur lg:min-w-[320px]">
+              <p className="mb-2 text-xs uppercase tracking-[0.25em] text-cyan-200">Controller status</p>
+              <p className="text-2xl font-semibold">
+                {overview?.controller.version || "Unknown"}{overview?.controller.build ? ` (${overview.controller.build})` : ""}
+              </p>
+              <p className="mt-2 text-sm text-slate-300">
+                Last sync: {lastSyncLabel}
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                Refresh cycle: {Math.round(DASHBOARD_REFRESH_INTERVAL_MS / 1000)} sec with overlap protection
+              </p>
+              <div className="mt-4 flex gap-2">
                 <Button
-                  onClick={fetchDashboardData}
+                  onClick={() => fetchDashboardData(true)}
                   variant="outline"
-                  disabled={loading}
+                  disabled={refreshing}
                   className="flex-1 border-white/20 bg-transparent text-white hover:bg-white/10"
                 >
-                  <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-                  {loading ? "Refreshing" : "Refresh"}
+                  <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                  Refresh
                 </Button>
                 <Button
                   onClick={handleExportPDF}
                   disabled={exporting}
-                  className="flex-1 border-white/20 bg-cyan-600 text-white hover:bg-cyan-700"
+                  className="flex-1 bg-cyan-600 text-white hover:bg-cyan-700"
                 >
                   <Download className={`mr-2 h-4 w-4 ${exporting ? "animate-spin" : ""}`} />
-                  {exporting ? "Exporting" : "Export PDF"}
+                  Export
                 </Button>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ERROR ALERT */}
         {error && (
           <div className="mb-8 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
             <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
             <div>
-              <h3 className="font-semibold text-red-900 dark:text-red-200">Error fetching data</h3>
+              <h3 className="font-semibold text-red-900 dark:text-red-200">Error fetching dashboard data</h3>
               <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
             </div>
           </div>
         )}
 
-        {/* KEY METRICS */}
-        <section className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <section className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          <SummaryCard
+            title="Devices"
+            value={stats?.total_devices || 0}
+            description={`${stats?.online_devices || 0} online`}
+            icon={<Server className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />}
+          />
+          <SummaryCard
+            title="Live Ports"
+            value={stats?.live_ports || 0}
+            description={`${stats?.enabled_ports || 0} enabled`}
+            icon={<Activity className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />}
+          />
+          <SummaryCard
+            title="Flows"
+            value={stats?.total_flows || 0}
+            description="Installed policy entries"
+            icon={<TrendingUp className="h-5 w-5 text-amber-600 dark:text-amber-400" />}
+          />
+          <SummaryCard
+            title="Hosts"
+            value={overview?.hosts.total || 0}
+            description="Discovered endpoints"
+            icon={<Users className="h-5 w-5 text-violet-600 dark:text-violet-400" />}
+          />
+          <SummaryCard
+            title="Apps"
+            value={overview?.applications.active || 0}
+            description={`${overview?.applications.total || 0} installed`}
+            icon={<AppWindow className="h-5 w-5 text-sky-600 dark:text-sky-400" />}
+          />
+          <SummaryCard
+            title="Alerts"
+            value={stats?.active_alerts || 0}
+            description="Open incidents"
+            icon={<BellRing className="h-5 w-5 text-rose-600 dark:text-rose-400" />}
+          />
+        </section>
+
+        <section className="mb-8 grid grid-cols-1 gap-6 xl:grid-cols-3">
           <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
-            <CardContent className="pt-6">
-              <div className="mb-3 flex items-center justify-between">
-                <Server className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-                <span className="text-xs uppercase tracking-[0.2em] text-gray-500">Devices</span>
+            <CardHeader>
+              <CardTitle>Controller & Cluster</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <MiniMetric label="Version" value={overview?.controller.version || "Unknown"} />
+                <MiniMetric label="Uptime" value={overview?.controller.uptime || "N/A"} />
+                <MiniMetric label="Cluster Nodes" value={String(overview?.cluster.total || 0)} />
+                <MiniMetric label="Online Nodes" value={String(overview?.cluster.online || 0)} />
               </div>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.total_devices || 0}</p>
-              <p className="mt-2 text-sm text-emerald-600 dark:text-emerald-400">
-                <Wifi className="inline mr-1 h-4 w-4" />
-                {stats?.online_devices || 0} Online
-              </p>
+              <div className="space-y-3">
+                {(overview?.cluster.nodes || []).slice(0, 4).map((node) => (
+                  <div
+                    key={node.id}
+                    className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950"
+                  >
+                    <div>
+                      <p className="font-medium">{node.id}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{node.ip || "No IP exposed"}</p>
+                    </div>
+                    <Badge variant="outline">{node.state}</Badge>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
 
           <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
-            <CardContent className="pt-6">
-              <div className="mb-3 flex items-center justify-between">
-                <Activity className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                <span className="text-xs uppercase tracking-[0.2em] text-gray-500">Ports</span>
-              </div>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.live_ports || 0}</p>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                {stats?.enabled_ports || 0} Enabled
-              </p>
+            <CardHeader>
+              <CardTitle>Applications</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {(overview?.applications.items || []).length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No application data available.</p>
+              ) : (
+                (overview?.applications.items || []).map((application) => (
+                  <div
+                    key={application.name}
+                    className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950"
+                  >
+                    <div>
+                      <p className="font-medium">{application.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {application.version || "Version N/A"} | {formatApplicationHealth(application.health)}
+                      </p>
+                    </div>
+                    <Badge
+                      className={
+                        String(application.state).toUpperCase() === "ACTIVE"
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+                          : "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300"
+                      }
+                    >
+                      {application.state}
+                    </Badge>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
 
           <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
-            <CardContent className="pt-6">
-              <div className="mb-3 flex items-center justify-between">
-                <TrendingUp className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                <span className="text-xs uppercase tracking-[0.2em] text-gray-500">Flows</span>
-              </div>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.total_flows || 0}</p>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                Active rules
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
-            <CardContent className="pt-6">
-              <div className="mb-3 flex items-center justify-between">
-                <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                <span className="text-xs uppercase tracking-[0.2em] text-gray-500">Alerts</span>
-              </div>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">{stats?.active_alerts || 0}</p>
-              <p className="mt-2 text-sm text-red-600 dark:text-red-400">
-                Unresolved
-              </p>
+            <CardHeader>
+              <CardTitle>Recent Alerts</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {recentAlerts.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No recent alerts.</p>
+              ) : (
+                recentAlerts.map((alert) => (
+                  <div
+                    key={alert.id}
+                    className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950"
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <Badge
+                        className={
+                          alert.severity === "critical"
+                            ? "bg-rose-600 text-white hover:bg-rose-600"
+                            : alert.severity === "warning"
+                              ? "bg-amber-500 text-slate-950 hover:bg-amber-500"
+                              : "bg-cyan-600 text-white hover:bg-cyan-600"
+                        }
+                      >
+                        {alert.severity}
+                      </Badge>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {formatTimestamp(alert.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium">{alert.message}</p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {alert.deviceId || "Controller-wide"} | {alert.resolved ? "Resolved" : "Open"}
+                    </p>
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
         </section>
 
-        {/* CHARTS SECTION */}
+        <section className="mb-8 grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Cpu className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                Controller Runtime
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <MiniMetric
+                  label="Live Threads"
+                  value={formatIntegerValue(overview?.controller.system.threadsLive)}
+                />
+                <MiniMetric
+                  label="Daemon Threads"
+                  value={formatIntegerValue(overview?.controller.system.threadsDaemon)}
+                />
+                <MiniMetric
+                  label="Memory Used"
+                  value={formatMemoryValue(overview?.controller.system.usedMemoryMb)}
+                />
+                <MiniMetric
+                  label="Memory Total"
+                  value={formatMemoryValue(overview?.controller.system.totalMemoryMb)}
+                />
+                <MiniMetric
+                  label="Devices"
+                  value={formatIntegerValue(overview?.controller.system.devices)}
+                />
+                <MiniMetric
+                  label="Links"
+                  value={formatIntegerValue(overview?.controller.system.links)}
+                />
+              </div>
+
+              <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-950">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+                    JVM Pressure
+                  </p>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                    {formatPercentValue(overview?.controller.system.usedMemoryPercent)}
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-800">
+                  <div
+                    className="h-2 rounded-full bg-gradient-to-r from-cyan-500 via-sky-500 to-emerald-500 transition-all"
+                    style={{ width: `${Math.min(100, Math.max(0, overview?.controller.system.usedMemoryPercent ?? 0))}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Node</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                    {overview?.controller.system.node || "Unknown"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Cluster ID</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                    {overview?.controller.system.clusterId || "Unknown"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Hosts / Flows</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                    {(overview?.controller.system.hosts ?? 0)} / {(overview?.controller.system.flows ?? 0)}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <GitBranch className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                Mastership Snapshot
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <MiniMetric
+                  label="Sampled Devices"
+                  value={String(overview?.mastership.sampledDevices || 0)}
+                />
+                <MiniMetric
+                  label="Resolved Masters"
+                  value={String(overview?.mastership.resolvedDevices || 0)}
+                />
+              </div>
+
+              <div className="rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                Snapshot coverage: {overview?.mastership.sampledDevices || 0} devices sampled out of{" "}
+                {overview?.mastership.totalDevices || 0} visible in ONOS.
+              </div>
+
+              <div className="space-y-3">
+                {(overview?.mastership.leaders || []).length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No mastership data returned by ONOS.</p>
+                ) : (
+                  (overview?.mastership.leaders || []).map((leader) => (
+                    <div
+                      key={leader.controller}
+                      className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950"
+                    >
+                      <div>
+                        <p className="font-medium">{leader.controller}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {leader.devices} device(s) in the sampled snapshot
+                        </p>
+                      </div>
+                      <Badge
+                        className={
+                          leader.online === true
+                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
+                            : leader.online === false
+                              ? "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300"
+                              : "border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                        }
+                      >
+                        {leader.online === true ? "Online" : leader.online === false ? "Offline" : "Unknown"}
+                      </Badge>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Network className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                Top Link Hotspots
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {topLoadedLinks.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No link load telemetry returned by ONOS.</p>
+              ) : (
+                topLoadedLinks.map((entry, index) => {
+                  const relativeWidth =
+                    hottestLinkValue > 0 && entry.utilization !== null
+                      ? Math.max(8, Math.round(((entry.utilization ?? 0) / hottestLinkValue) * 100))
+                      : 8
+
+                  return (
+                    <div
+                      key={entry.id}
+                      className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950"
+                    >
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-medium">{entry.device}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">Port {entry.port}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                            {formatTelemetryScore(entry.utilization)}
+                          </p>
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                            Rank #{index + 1}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-800">
+                        <div
+                          className="h-2 rounded-full bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 transition-all"
+                          style={{ width: `${relativeWidth}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+
+              <div className="rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                Link bars are ranked relative to the hottest link in the current ONOS snapshot.
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
         <section className="mb-8 grid grid-cols-1 gap-6 xl:grid-cols-2">
-          {/* Device Types Pie Chart */}
           <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
             <CardHeader>
               <CardTitle>Device Types Distribution</CardTitle>
@@ -263,11 +626,10 @@ export default function DashboardPage() {
                     labelLine={false}
                     label={({ name, value }) => `${name}: ${value}`}
                     outerRadius={80}
-                    fill="#8884d8"
                     dataKey="value"
                   >
-                    {COLORS.map((color, index) => (
-                      <Cell key={`cell-${index}`} fill={color} />
+                    {deviceTypeData.map((entry, index) => (
+                      <Cell key={`${entry.name}-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip />
@@ -276,7 +638,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Port Status Bar Chart */}
           <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
             <CardHeader>
               <CardTitle>Port Status Overview</CardTitle>
@@ -299,73 +660,351 @@ export default function DashboardPage() {
           </Card>
         </section>
 
-        {/* TRAFFIC DATA */}
-        <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
-          <CardHeader>
-            <CardTitle>Device Traffic (RX/TX in MB)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={trafficData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="rx" fill="#06b6d4" name="RX (MB)" />
-                <Bar dataKey="tx" fill="#10b981" name="TX (MB)" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <section className="mb-8 grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                Controller Metrics
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+                <MiniMetric label="Total" value={String(overview?.observability.totalMetrics || 0)} />
+                <MiniMetric label="Timers" value={String(overview?.observability.timers || 0)} />
+                <MiniMetric label="Counters" value={String(overview?.observability.counters || 0)} />
+                <MiniMetric label="Gauges" value={String(overview?.observability.gauges || 0)} />
+                <MiniMetric label="Meters" value={String(overview?.observability.meters || 0)} />
+                <MiniMetric label="Histograms" value={String(overview?.observability.histograms || 0)} />
+              </div>
 
-        {/* DEVICES TABLE */}
-        <Card className="mt-8 border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
-          <CardHeader>
-            <CardTitle>Connected Devices</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-gray-200 dark:border-gray-700">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-900 dark:text-white">Device ID</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-900 dark:text-white">Type</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-900 dark:text-white">Status</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-900 dark:text-white">Ports</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-900 dark:text-white">RX (MB)</th>
-                    <th className="px-4 py-3 text-left font-semibold text-gray-900 dark:text-white">TX (MB)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {devices.map((device) => (
-                    <tr key={device.device_id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                      <td className="px-4 py-3 font-mono text-xs text-cyan-600 dark:text-cyan-400">
-                        {device.device_id}
-                      </td>
-                      <td className="px-4 py-3 capitalize">{device.type}</td>
-                      <td className="px-4 py-3">
-                        <Badge className={device.available ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"}>
-                          {device.available ? "Online" : "Offline"}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3">
-                        {device.live_ports}/{device.total_ports}
-                      </td>
-                      <td className="px-4 py-3">
-                        {(device.total_rx_bytes / (1024 * 1024)).toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3">
-                        {(device.total_tx_bytes / (1024 * 1024)).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="space-y-3">
+                {metricHighlights.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No controller metrics returned by ONOS.</p>
+                ) : (
+                  metricHighlights.map((entry) => (
+                    <div
+                      key={entry.name}
+                      className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950"
+                    >
+                      <div className="mb-2 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{entry.name}</p>
+                          <p className="text-xs uppercase tracking-[0.18em] text-gray-500 dark:text-gray-400">
+                            {entry.kind}
+                          </p>
+                        </div>
+                        <Badge variant="outline">{entry.kind}</Badge>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs text-gray-500 dark:text-gray-400">
+                        <div className="rounded-xl bg-white px-3 py-2 dark:bg-slate-900">
+                          Rate
+                          <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                            {formatMetricRate(entry.meanRate)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl bg-white px-3 py-2 dark:bg-slate-900">
+                          Counter
+                          <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                            {formatIntegerValue(entry.counter)}
+                          </p>
+                        </div>
+                        <div className="rounded-xl bg-white px-3 py-2 dark:bg-slate-900">
+                          Max
+                          <p className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">
+                            {formatMetricRate(entry.max)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AppWindow className="h-5 w-5 text-sky-600 dark:text-sky-400" />
+                Active VPLS Services
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <MiniMetric label="Services" value={String(overview?.vpls.totalServices || 0)} />
+                <MiniMetric label="Interfaces" value={String(overview?.vpls.totalInterfaces || 0)} />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {(overview?.vpls.encapsulations || []).length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No encapsulation summary available.</p>
+                ) : (
+                  (overview?.vpls.encapsulations || []).map((item) => (
+                    <Badge
+                      key={item.name}
+                      className="border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-300"
+                    >
+                      {item.name}: {item.count}
+                    </Badge>
+                  ))
+                )}
+              </div>
+
+              <div className="space-y-3">
+                {vplsServices.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No VPLS services currently exposed by ONOS.</p>
+                ) : (
+                  vplsServices.map((service) => (
+                    <div
+                      key={service.name}
+                      className="flex items-center justify-between rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-800 dark:bg-gray-950"
+                    >
+                      <div>
+                        <p className="font-medium">{service.name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {service.encapsulation || "Encapsulation N/A"}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-gray-900 dark:text-white">{service.interfaces}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">interfaces</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="mb-8 grid grid-cols-1 gap-6 xl:grid-cols-3">
+          <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80 xl:col-span-2">
+            <CardHeader>
+              <CardTitle>Device Traffic (RX/TX in MB)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={trafficData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="rx" fill="#06b6d4" name="RX (MB)" />
+                  <Bar dataKey="tx" fill="#10b981" name="TX (MB)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+            <CardHeader>
+              <CardTitle>Intent Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {intentSummaryEntries.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No intent summary returned by ONOS.</p>
+              ) : (
+                intentSummaryEntries.map(([key, value]) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950"
+                  >
+                    <span className="text-sm capitalize">{key.replaceAll("_", " ")}</span>
+                    <span className="font-semibold">{String(value)}</span>
+                  </div>
+                ))
+              )}
+
+              <div className="rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+                This panel is ready for the next phase: IMR monitoring, reroute workflows, and intent-to-flow correlation.
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        <section className="grid grid-cols-1 gap-6">
+          <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+            <CardHeader>
+              <CardTitle>Connected Devices</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="py-12 text-center text-gray-500 dark:text-gray-400">Loading dashboard data...</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b border-gray-200 dark:border-gray-700">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-900 dark:text-white">Device ID</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-900 dark:text-white">Type</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-900 dark:text-white">Status</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-900 dark:text-white">Live Ports</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-900 dark:text-white">RX (MB)</th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-900 dark:text-white">TX (MB)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {devices.map((device) => (
+                        <tr
+                          key={device.device_id}
+                          className="border-b border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50"
+                        >
+                          <td className="px-4 py-3 font-mono text-xs text-cyan-600 dark:text-cyan-400">
+                            {device.device_id}
+                          </td>
+                          <td className="px-4 py-3 capitalize">{device.type}</td>
+                          <td className="px-4 py-3">
+                            <Badge
+                              className={
+                                device.available
+                                  ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200"
+                                  : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                              }
+                            >
+                              {device.available ? "Online" : "Offline"}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            {device.live_ports}/{device.total_ports}
+                          </td>
+                          <td className="px-4 py-3">{(device.total_rx_bytes / (1024 * 1024)).toFixed(2)}</td>
+                          <td className="px-4 py-3">{(device.total_tx_bytes / (1024 * 1024)).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+
+        <DashboardChatbot stats={stats} overview={overview} linkLoadCount={linkLoad.length} />
       </main>
     </div>
   )
+}
+
+function SummaryCard({
+  title,
+  value,
+  description,
+  icon,
+}: {
+  title: string
+  value: number
+  description: string
+  icon: React.ReactNode
+}) {
+  return (
+    <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+      <CardContent className="pt-6">
+        <div className="mb-3 flex items-center justify-between">
+          {icon}
+          <span className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">{title}</span>
+        </div>
+        <p className="text-3xl font-bold text-gray-900 dark:text-white">{value}</p>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{description}</p>
+      </CardContent>
+    </Card>
+  )
+}
+
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-gray-50 p-4 dark:bg-gray-950">
+      <p className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">{label}</p>
+      <p className="mt-2 font-semibold">{value}</p>
+    </div>
+  )
+}
+
+function formatMemoryValue(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "N/A"
+  }
+
+  return `${value.toFixed(0)} MB`
+}
+
+function formatIntegerValue(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "N/A"
+  }
+
+  return String(Math.round(value))
+}
+
+function formatPercentValue(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "N/A"
+  }
+
+  return `${value.toFixed(1)}%`
+}
+
+function formatTelemetryScore(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "N/A"
+  }
+
+  return value.toFixed(2)
+}
+
+function formatMetricRate(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "N/A"
+  }
+
+  return value >= 100 ? value.toFixed(0) : value.toFixed(2)
+}
+
+function formatApplicationHealth(health: Record<string, unknown> | null) {
+  if (!health) {
+    return "Health N/A"
+  }
+
+  const candidates = [
+    health.status,
+    health.state,
+    health.health,
+    health.message,
+  ].filter(Boolean)
+
+  return candidates.length > 0 ? String(candidates[0]) : "Health available"
+}
+
+function formatTimestamp(value: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(new Date(value))
+}
+
+function formatRelativeSync(lastSyncAt: number | null, clockNow: number) {
+  if (!lastSyncAt) {
+    return "Syncing..."
+  }
+
+  const seconds = Math.max(0, Math.floor((clockNow - lastSyncAt) / 1000))
+
+  if (seconds < 5) {
+    return "Just now"
+  }
+
+  if (seconds < 60) {
+    return `${seconds}s ago`
+  }
+
+  const minutes = Math.floor(seconds / 60)
+
+  if (minutes < 60) {
+    return `${minutes}m ago`
+  }
+
+  const hours = Math.floor(minutes / 60)
+  return `${hours}h ago`
 }

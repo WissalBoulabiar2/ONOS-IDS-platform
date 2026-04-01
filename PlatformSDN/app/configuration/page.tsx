@@ -24,29 +24,29 @@ import {
 const statusCards = [
   {
     title: "Controller Status",
-    value: "Connected",
-    description: "ONOS API reachable from the platform",
+    value: "Configured",
+    description: "Backend defaults target ONOS on localhost:8181",
     icon: Server,
     accent: "text-emerald-400",
   },
   {
     title: "Collection Interval",
-    value: "30 sec",
-    description: "Polling frequency for topology and metrics",
+    value: "5 sec",
+    description: "Current backend sync default when auto-sync is enabled",
     icon: TimerReset,
     accent: "text-cyan-400",
   },
   {
     title: "Alert Threshold",
     value: "90%",
-    description: "Trigger warning for high port usage",
+    description: "Recommended warning threshold for initial alerting",
     icon: AlertTriangle,
     accent: "text-amber-400",
   },
   {
     title: "Storage Mode",
-    value: "Frontend Mock",
-    description: "Prepared for PostgreSQL integration later",
+    value: "Live + PG cache",
+    description: "ONOS live data with optional PostgreSQL caching",
     icon: Database,
     accent: "text-violet-400",
   },
@@ -65,7 +65,7 @@ export default function ConfigurationPage() {
                 Platform Settings
               </Badge>
               <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300">
-                ONOS Connected
+                Config Preview
               </Badge>
             </div>
             <h1 className="mb-2 flex items-center gap-3 text-4xl font-bold">
@@ -84,8 +84,8 @@ export default function ConfigurationPage() {
                 <Wifi className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
-                <p className="text-sm font-semibold">Environment Ready</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Frontend configuration prepared for live integration</p>
+                <p className="text-sm font-semibold">Backend-Aligned Defaults</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">This page now mirrors the current local backend profile</p>
               </div>
             </div>
           </div>
@@ -129,16 +129,16 @@ export default function ConfigurationPage() {
                   <Label className="mb-2 block">Controller URL</Label>
                   <Input defaultValue="http://localhost:8181" className="bg-white dark:bg-gray-950" />
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Main REST endpoint used by the future backend proxy.
+                    Main REST endpoint used by the current backend proxy.
                   </p>
                 </div>
                 <div>
                   <Label className="mb-2 block">Username</Label>
-                  <Input type="text" defaultValue="onos" className="bg-white dark:bg-gray-950" />
+                  <Input type="text" defaultValue="karaf" className="bg-white dark:bg-gray-950" />
                 </div>
                 <div>
                   <Label className="mb-2 block">Password</Label>
-                  <Input type="password" defaultValue="rocks" className="bg-white dark:bg-gray-950" />
+                  <Input type="password" defaultValue="karaf" className="bg-white dark:bg-gray-950" />
                 </div>
                 <div>
                   <Label className="mb-2 block">Northbound API Path</Label>
@@ -146,7 +146,7 @@ export default function ConfigurationPage() {
                 </div>
                 <div>
                   <Label className="mb-2 block">Connection Timeout (ms)</Label>
-                  <Input type="number" defaultValue="5000" className="bg-white dark:bg-gray-950" />
+                  <Input type="number" defaultValue="8000" className="bg-white dark:bg-gray-950" />
                 </div>
               </CardContent>
             </Card>
@@ -172,11 +172,11 @@ export default function ConfigurationPage() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                   <div>
                     <Label className="mb-2 block">Polling Interval (sec)</Label>
-                    <Input type="number" defaultValue="30" className="bg-white dark:bg-gray-950" />
+                    <Input type="number" defaultValue="5" className="bg-white dark:bg-gray-950" />
                   </div>
                   <div>
                     <Label className="mb-2 block">Topology Refresh (sec)</Label>
-                    <Input type="number" defaultValue="10" className="bg-white dark:bg-gray-950" />
+                    <Input type="number" defaultValue="5" className="bg-white dark:bg-gray-950" />
                   </div>
                   <div>
                     <Label className="mb-2 block">Dashboard Refresh (sec)</Label>
@@ -252,15 +252,15 @@ export default function ConfigurationPage() {
                   </p>
                 </div>
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/40">
-                  <p className="font-semibold text-amber-700 dark:text-amber-300">Backend connection pending</p>
+                  <p className="font-semibold text-amber-700 dark:text-amber-300">Backend bridge available</p>
                   <p className="mt-1 text-amber-600 dark:text-amber-400">
-                    API proxy, auth, and collection services will be added after frontend completion.
+                    Devices, topology, flows, dashboard stats, and metrics already exist via the backend API.
                   </p>
                 </div>
                 <div className="rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-900 dark:bg-violet-950/40">
-                  <p className="font-semibold text-violet-700 dark:text-violet-300">Database phase later</p>
+                  <p className="font-semibold text-violet-700 dark:text-violet-300">Database cache optional</p>
                   <p className="mt-1 text-violet-600 dark:text-violet-400">
-                    Historical metrics, alerts, and users will move to PostgreSQL afterwards.
+                    PostgreSQL is already prepared for caching, history, and alerts, but the platform does not use every table yet.
                   </p>
                 </div>
               </CardContent>

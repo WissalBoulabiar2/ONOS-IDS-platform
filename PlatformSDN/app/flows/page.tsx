@@ -1,51 +1,217 @@
 "use client"
 
-import React, { useMemo, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
 import Navigation from "@/components/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useFlows } from "@/hooks/sdn-hooks"
+import { Switch } from "@/components/ui/switch"
+import { sdnApi, type ApiFlow } from "@/services/api"
 import {
   Activity,
+  AlertCircle,
   Copy,
   Filter,
   Network,
   Plus,
   PlayCircle,
+  RefreshCw,
   Shield,
   Trash2,
   Zap,
 } from "lucide-react"
 
+function summarizeCriterion(criterion: Record<string, unknown>) {
+  const type = String(criterion.type || "UNKNOWN")
+
+  switch (type) {
+    case "IN_PORT":
+      return `in_port:${criterion.port}`
+    case "ETH_TYPE":
+      return `eth_type:${criterion.ethType}`
+    case "IPV4_SRC":
+      return `ipv4_src:${criterion.ip}`
+    case "IPV4_DST":
+      return `ipv4_dst:${criterion.ip}`
+    case "TCP_DST":
+      return `tcp_dst:${criterion.tcpPort}`
+    case "TCP_SRC":
+      return `tcp_src:${criterion.tcpPort}`
+    default:
+      return type.toLowerCase()
+  }
+}
+
+function summarizeInstruction(instruction: Record<string, unknown>) {
+  const type = String(instruction.type || "UNKNOWN")
+
+  switch (type) {
+    case "OUTPUT":
+      return `output:${instruction.port}`
+    case "DROP":
+      return "drop"
+    default:
+      return type.toLowerCase()
+  }
+}
+
+function buildFlowPayload(params: {
+  deviceId: string
+  priority: string
+  inPort: string
+  outputPort: string
+  ethType: string
+  isPermanent: boolean
+  timeout: string
+}) {
+  const criteria: Array<Record<string, unknown>> = []
+
+  if (params.inPort.trim()) {
+    criteria.push({
+      type: "IN_PORT",
+      port: Number(params.inPort),
+    })
+  }
+
+  if (params.ethType.trim()) {
+    criteria.push({
+      type: "ETH_TYPE",
+      ethType: params.ethType,
+    })
+  }
+
+  return {
+    priority: Number(params.priority || 40000),
+    timeout: params.isPermanent ? 0 : Number(params.timeout || 0),
+    isPermanent: params.isPermanent,
+    deviceId: params.deviceId,
+    treatment: {
+      instructions: [
+        {
+          type: "OUTPUT",
+          port: params.outputPort || "CONTROLLER",
+        },
+      ],
+    },
+    selector: {
+      criteria,
+    },
+  }
+}
+
 export default function FlowsPage() {
-  const { flows, loading } = useFlows()
+  const [flows, setFlows] = useState<ApiFlow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [deletingFlowId, setDeletingFlowId] = useState<string | null>(null)
+  const [source, setSource] = useState<"database" | "onos">("onos")
+  const [lastSync, setLastSync] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [message, setMessage] = useState<string | null>(null)
+
   const [deviceId, setDeviceId] = useState("of:0000000000000001")
+  const [appId, setAppId] = useState("org.platformsdn.app")
   const [priority, setPriority] = useState("40000")
   const [inPort, setInPort] = useState("1")
   const [outputPort, setOutputPort] = useState("2")
+  const [ethType, setEthType] = useState("0x0800")
+  const [isPermanent, setIsPermanent] = useState(true)
+  const [timeout, setTimeout] = useState("0")
 
-  const addedFlows = flows.filter((f) => f.state === "added")
-  const pendingFlows = flows.filter((f) => f.state === "pending")
-  const dropRules = flows.filter((f) => f.action.drop).length
+  const fetchFlows = useCallback(async (background = false) => {
+    try {
+      if (background) {
+        setRefreshing(true)
+      } else {
+        setLoading(true)
+      }
+      setError(null)
+      const data = await sdnApi.getFlows()
+      setFlows(data.flows)
+      setSource((data.source || "onos") as "database" | "onos")
+      setLastSync(new Date().toLocaleTimeString())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch flows")
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchFlows()
+    const interval = setInterval(() => {
+      fetchFlows(true)
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [fetchFlows])
+
+  const handleCreateFlow = async () => {
+    try {
+      setCreating(true)
+      setError(null)
+      setMessage(null)
+
+      const payload = buildFlowPayload({
+        deviceId,
+        priority,
+        inPort,
+        outputPort,
+        ethType,
+        isPermanent,
+        timeout,
+      })
+
+      await sdnApi.createFlow(deviceId, payload, appId)
+      setMessage("Flow created successfully on ONOS.")
+      await fetchFlows(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create flow")
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const handleDeleteFlow = async (flow: ApiFlow) => {
+    try {
+      setDeletingFlowId(flow.flowId)
+      setError(null)
+      setMessage(null)
+      await sdnApi.deleteFlow(flow.deviceId, flow.flowId)
+      setMessage(`Flow ${flow.flowId} deleted successfully.`)
+      await fetchFlows(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete flow")
+    } finally {
+      setDeletingFlowId(null)
+    }
+  }
 
   const normalizedFlows = useMemo(
     () =>
-      flows.map((flow) => ({
-        ...flow,
-        matchSummary: Object.entries(flow.match)
-          .map(([key, value]) => `${key}: ${value}`)
-          .join(" | "),
-        actionSummary: flow.action.drop
-          ? "drop"
-          : flow.action.output
-            ? `output:${flow.action.output}`
-            : "custom",
-      })),
+      flows.map((flow) => {
+        const criteria = Array.isArray(flow.selector?.criteria) ? flow.selector?.criteria || [] : []
+        const instructions = Array.isArray(flow.treatment?.instructions)
+          ? flow.treatment?.instructions || []
+          : []
+
+        return {
+          ...flow,
+          matchSummary: criteria.length > 0 ? criteria.map(summarizeCriterion).join(" | ") : "any",
+          actionSummary:
+            instructions.length > 0 ? instructions.map(summarizeInstruction).join(" | ") : "none",
+        }
+      }),
     [flows]
   )
+
+  const addedFlows = normalizedFlows.filter((flow) => String(flow.state).toLowerCase().includes("added"))
+  const pendingFlows = normalizedFlows.filter((flow) => String(flow.state).toLowerCase().includes("pending"))
+  const dropRules = normalizedFlows.filter((flow) => flow.actionSummary.includes("drop")).length
 
   return (
     <div className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-white">
@@ -60,27 +226,67 @@ export default function FlowsPage() {
                   OpenFlow Policy
                 </Badge>
                 <Badge className="border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
-                  Rule Management
+                  {source === "database" ? "PostgreSQL cache" : "Live ONOS"}
                 </Badge>
               </div>
               <h1 className="mb-3 text-4xl font-bold tracking-tight sm:text-5xl">Flow Rules Console</h1>
               <p className="max-w-2xl text-sm text-slate-300 sm:text-base">
-                Review forwarding rules, inspect matching criteria, and prepare the frontend for future POST
-                and DELETE operations against ONOS through the backend API.
+                Flow listing and creation now use the secured backend and ONOS directly. You can refresh, create, and delete real flow entries from this page.
               </p>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur lg:min-w-[280px]">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur lg:min-w-[300px]">
               <p className="mb-2 text-xs uppercase tracking-[0.25em] text-cyan-200">Policy status</p>
               <p className="text-2xl font-semibold">
                 {pendingFlows.length > 0 ? `${pendingFlows.length} pending update(s)` : "Rules synchronized"}
               </p>
               <p className="mt-2 text-sm text-slate-300">
-                Flow creation is mocked now and will later be connected to the ONOS backend endpoint.
+                Last sync: {lastSync || "Syncing..."}
               </p>
+              <Button
+                onClick={() => fetchFlows(true)}
+                variant="outline"
+                className="mt-4 w-full border-white/20 bg-transparent text-white hover:bg-white/10"
+                disabled={refreshing}
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                Refresh flows
+              </Button>
             </div>
           </div>
         </section>
+
+        {(error || message) && (
+          <div
+            className={`mb-8 flex items-start gap-3 rounded-2xl border p-4 ${
+              error
+                ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950"
+                : "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950"
+            }`}
+          >
+            <AlertCircle
+              className={`mt-0.5 h-5 w-5 flex-shrink-0 ${
+                error ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"
+              }`}
+            />
+            <div>
+              <h3
+                className={`font-semibold ${
+                  error ? "text-red-900 dark:text-red-200" : "text-emerald-900 dark:text-emerald-200"
+                }`}
+              >
+                {error ? "Flow operation failed" : "Flow operation completed"}
+              </h3>
+              <p
+                className={`text-sm ${
+                  error ? "text-red-800 dark:text-red-300" : "text-emerald-800 dark:text-emerald-300"
+                }`}
+              >
+                {error || message}
+              </p>
+            </div>
+          </div>
+        )}
 
         <section className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
@@ -89,8 +295,8 @@ export default function FlowsPage() {
                 <Network className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
                 <span className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Total</span>
               </div>
-              <p className="text-3xl font-bold">{flows.length}</p>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Flow entries visible in the policy table</p>
+              <p className="text-3xl font-bold">{normalizedFlows.length}</p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Flow entries loaded from the backend</p>
             </CardContent>
           </Card>
 
@@ -101,7 +307,7 @@ export default function FlowsPage() {
                 <span className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Active</span>
               </div>
               <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">{addedFlows.length}</p>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Installed rules marked as operational</p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Installed rules marked operational</p>
             </CardContent>
           </Card>
 
@@ -134,20 +340,23 @@ export default function FlowsPage() {
               <div className="py-12 text-center">
                 <p className="text-gray-400">Loading flows...</p>
               </div>
-            ) : flows.length === 0 ? (
+            ) : normalizedFlows.length === 0 ? (
               <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
                 <CardContent className="py-12 text-center">
                   <PlayCircle className="mx-auto mb-4 h-12 w-12 text-gray-400" />
                   <p className="text-gray-500 dark:text-gray-400">No flows configured</p>
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-500">
-                    Create a new flow rule to start policy management.
+                    Use the right-side form to create a new ONOS flow.
                   </p>
                 </CardContent>
               </Card>
             ) : (
               <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
                 <CardHeader>
-                  <CardTitle className="text-xl">Installed Flow Rules</CardTitle>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <CardTitle className="text-xl">Installed Flow Rules</CardTitle>
+                    <Badge variant="outline">Source: {source}</Badge>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
@@ -167,7 +376,7 @@ export default function FlowsPage() {
                       <tbody>
                         {normalizedFlows.map((flow) => (
                           <tr
-                            key={flow.id}
+                            key={`${flow.deviceId}-${flow.flowId}`}
                             className="border-b border-gray-100 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900/50"
                           >
                             <td className="px-4 py-4 font-mono text-xs text-cyan-600 dark:text-cyan-400">
@@ -180,9 +389,9 @@ export default function FlowsPage() {
                             <td className="px-4 py-4">
                               <Badge
                                 className={
-                                  flow.state === "added"
+                                  String(flow.state).toLowerCase().includes("added")
                                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300"
-                                    : flow.state === "pending"
+                                    : String(flow.state).toLowerCase().includes("pending")
                                       ? "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-300"
                                       : "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-300"
                                 }
@@ -191,19 +400,22 @@ export default function FlowsPage() {
                               </Badge>
                             </td>
                             <td className="px-4 py-4 text-xs text-gray-600 dark:text-gray-400">
-                              {flow.matchSummary || "any"}
+                              {flow.matchSummary}
                             </td>
                             <td className="px-4 py-4 text-xs text-gray-600 dark:text-gray-400">
                               {flow.actionSummary}
                             </td>
-                            <td className="px-4 py-4 text-xs text-gray-500 dark:text-gray-400">{flow.appId}</td>
+                            <td className="px-4 py-4 text-xs text-gray-500 dark:text-gray-400">
+                              {flow.appId || "unknown"}
+                            </td>
                             <td className="px-4 py-4">
                               <div className="flex justify-end gap-2">
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   className="p-1 text-gray-500 hover:text-cyan-500"
-                                  title="Duplicate flow"
+                                  title="Copy flow ID"
+                                  onClick={() => navigator.clipboard.writeText(flow.flowId)}
                                 >
                                   <Copy className="h-4 w-4" />
                                 </Button>
@@ -212,6 +424,8 @@ export default function FlowsPage() {
                                   variant="ghost"
                                   className="p-1 text-gray-500 hover:text-red-500"
                                   title="Delete flow"
+                                  onClick={() => handleDeleteFlow(flow)}
+                                  disabled={deletingFlowId === flow.flowId}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -230,7 +444,7 @@ export default function FlowsPage() {
           <div className="space-y-6">
             <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
               <CardHeader>
-                <CardTitle className="text-xl">Create Mock Flow</CardTitle>
+                <CardTitle className="text-xl">Create ONOS Flow</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -238,8 +452,16 @@ export default function FlowsPage() {
                   <Input value={deviceId} onChange={(e) => setDeviceId(e.target.value)} />
                 </div>
                 <div>
+                  <Label className="mb-2 block">App ID</Label>
+                  <Input value={appId} onChange={(e) => setAppId(e.target.value)} />
+                </div>
+                <div>
                   <Label className="mb-2 block">Priority</Label>
                   <Input value={priority} onChange={(e) => setPriority(e.target.value)} />
+                </div>
+                <div>
+                  <Label className="mb-2 block">EtherType</Label>
+                  <Input value={ethType} onChange={(e) => setEthType(e.target.value)} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -251,12 +473,28 @@ export default function FlowsPage() {
                     <Input value={outputPort} onChange={(e) => setOutputPort(e.target.value)} />
                   </div>
                 </div>
-                <Button className="w-full bg-cyan-600 hover:bg-cyan-700">
+
+                <div className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950">
+                  <div>
+                    <p className="font-medium">Permanent rule</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Use timeout only when this is disabled.</p>
+                  </div>
+                  <Switch checked={isPermanent} onCheckedChange={setIsPermanent} />
+                </div>
+
+                {!isPermanent && (
+                  <div>
+                    <Label className="mb-2 block">Timeout (sec)</Label>
+                    <Input value={timeout} onChange={(e) => setTimeout(e.target.value)} />
+                  </div>
+                )}
+
+                <Button className="w-full bg-cyan-600 hover:bg-cyan-700" onClick={handleCreateFlow} disabled={creating}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Stage New Flow
+                  {creating ? "Creating..." : "Push Flow To ONOS"}
                 </Button>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  This form is frontend-only for now. Later it will submit to the backend endpoint that talks to ONOS.
+                  This form now sends a real POST request to ONOS through the backend using the selected App ID.
                 </p>
               </CardContent>
             </Card>
@@ -268,15 +506,15 @@ export default function FlowsPage() {
               <CardContent className="space-y-3 text-sm text-gray-600 dark:text-gray-400">
                 <p className="flex items-center gap-2">
                   <Filter className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-                  Match fields currently shown from mock ONOS-like data.
+                  Match summaries are built from ONOS selector criteria.
                 </p>
                 <p className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  Active rules represent forwarding policies ready for enforcement.
+                  Delete now removes the selected flow from ONOS and from the local DB cache if present.
                 </p>
                 <p className="flex items-center gap-2">
                   <Zap className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                  Drop actions will later help demonstrate access control and traffic filtering.
+                  Next step after this page: add groups, meters, flow objectives, and intent-related flow views.
                 </p>
               </CardContent>
             </Card>

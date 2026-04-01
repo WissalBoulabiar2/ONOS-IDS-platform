@@ -8,7 +8,9 @@
     "dev": "next dev",
     "backend": "node backend/server.js",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "start:platform": "powershell -ExecutionPolicy Bypass -File scripts/start-platform.ps1",
+    "status:platform": "powershell -ExecutionPolicy Bypass -File scripts/status-platform.ps1"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -61,6 +63,7 @@
     "next": "15.2.4",
     "next-themes": "^0.4.6",
     "pg": "^8.20.0",
+    "pg-mem": "^3.0.14",
     "react": "^19",
     "react-day-picker": "9.8.0",
     "react-dom": "^19",

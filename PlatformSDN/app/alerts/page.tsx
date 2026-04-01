@@ -1,11 +1,11 @@
 "use client"
 
-import React, { useMemo, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
 import Navigation from "@/components/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useAlerts, useRealtimeUpdates } from "@/hooks/sdn-hooks"
+import { sdnApi, type ApiAlert } from "@/services/api"
 import {
   AlertTriangle,
   BellRing,
@@ -13,40 +13,85 @@ import {
   Clock3,
   Filter,
   Radar,
+  RefreshCw,
   ShieldAlert,
+  ShieldCheck,
   Siren,
-  Trash2,
 } from "lucide-react"
 
 type ResolutionFilter = "all" | "open" | "resolved"
 type SeverityFilter = "all" | "critical" | "warning" | "info"
 
 export default function AlertsPage() {
-  const { alerts, loading } = useAlerts()
-  const timestamp = useRealtimeUpdates(5000)
+  const [alerts, setAlerts] = useState<ApiAlert[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [resolvingAlertId, setResolvingAlertId] = useState<string | null>(null)
   const [resolutionFilter, setResolutionFilter] = useState<ResolutionFilter>("open")
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all")
+  const [source, setSource] = useState<"database" | "onos" | "local-store">("onos")
+  const [lastSync, setLastSync] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [summary, setSummary] = useState({
+    total: 0,
+    open: 0,
+    resolved: 0,
+    critical: 0,
+    warning: 0,
+    info: 0,
+  })
 
-  const openAlerts = alerts.filter((alert) => !alert.resolved)
-  const criticalAlerts = openAlerts.filter((alert) => alert.severity === "critical")
-  const warningAlerts = openAlerts.filter((alert) => alert.severity === "warning")
-  const infoAlerts = openAlerts.filter((alert) => alert.severity === "info")
+  const fetchAlerts = useCallback(async (background = false) => {
+    try {
+      if (background) {
+        setRefreshing(true)
+      } else {
+        setLoading(true)
+      }
 
-  const filteredAlerts = useMemo(() => {
-    return alerts.filter((alert) => {
-      const resolutionMatches =
-        resolutionFilter === "all" ||
-        (resolutionFilter === "open" && !alert.resolved) ||
-        (resolutionFilter === "resolved" && alert.resolved)
+      setError(null)
 
-      const severityMatches =
-        severityFilter === "all" || alert.severity === severityFilter
+      const data = await sdnApi.getAlerts({
+        status: resolutionFilter,
+        severity: severityFilter,
+        limit: 200,
+      })
 
-      return resolutionMatches && severityMatches
-    })
-  }, [alerts, resolutionFilter, severityFilter])
+      setAlerts(data.alerts)
+      setSummary(data.summary)
+      setSource(data.source)
+      setLastSync(new Date().toLocaleTimeString())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch alerts")
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [resolutionFilter, severityFilter])
 
-  const latestIncident = filteredAlerts[0]
+  useEffect(() => {
+    fetchAlerts()
+    const interval = setInterval(() => {
+      fetchAlerts(true)
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [fetchAlerts])
+
+  const latestIncident = useMemo(() => alerts[0] ?? null, [alerts])
+
+  const handleResolveAlert = async (alertId: string) => {
+    try {
+      setResolvingAlertId(alertId)
+      setError(null)
+      await sdnApi.resolveAlert(alertId)
+      await fetchAlerts(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to resolve alert")
+    } finally {
+      setResolvingAlertId(null)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-white">
@@ -60,32 +105,50 @@ export default function AlertsPage() {
                 <Badge className="border-rose-400/20 bg-rose-400/10 text-rose-100">
                   Incident Monitoring
                 </Badge>
-                <Badge className="border-amber-400/20 bg-amber-400/10 text-amber-100">
-                  Realtime Review
+                <Badge className="border-cyan-400/20 bg-cyan-400/10 text-cyan-100">
+                  {source === "database"
+                    ? "PostgreSQL-backed alerts"
+                    : source === "local-store"
+                      ? "Local persisted alerts"
+                      : "Live ONOS-derived alerts"}
                 </Badge>
               </div>
               <h1 className="mb-3 text-4xl font-bold tracking-tight sm:text-5xl">
                 Network Alerts Center
               </h1>
               <p className="max-w-2xl text-sm text-slate-300 sm:text-base">
-                Review active incidents, track warning signals, and prepare the frontend for live alerting
-                from ONOS, backend rules, and database-backed history.
+                Real incidents are now generated from ONOS state and synchronized to PostgreSQL when the database is available.
               </p>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur lg:min-w-[300px]">
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur lg:min-w-[320px]">
               <p className="mb-2 text-xs uppercase tracking-[0.25em] text-rose-100">Latest refresh</p>
-              <p className="text-2xl font-semibold">{timestamp ? timestamp.toLocaleTimeString() : "--:--:--"}</p>
+              <p className="text-2xl font-semibold">{lastSync || "Syncing..."}</p>
               <p className="mt-2 text-sm text-slate-300">
-                Alert polling is simulated for now and will later be replaced by WebSocket and backend events.
+                The backend checks controller reachability, devices, links, ports, and pending flows every refresh cycle.
               </p>
-              <div className="mt-4 flex items-center gap-2 text-sm text-slate-200">
-                <Radar className="h-4 w-4 text-cyan-300" />
-                <span>{openAlerts.length} active incidents under supervision</span>
-              </div>
+              <Button
+                onClick={() => fetchAlerts(true)}
+                variant="outline"
+                className="mt-4 w-full border-white/20 bg-transparent text-white hover:bg-white/10"
+                disabled={refreshing}
+              >
+                <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                Refresh alerts
+              </Button>
             </div>
           </div>
         </section>
+
+        {error && (
+          <div className="mb-8 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-950">
+            <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600 dark:text-red-400" />
+            <div>
+              <h3 className="font-semibold text-red-900 dark:text-red-200">Alert backend error</h3>
+              <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
+            </div>
+          </div>
+        )}
 
         <section className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
@@ -94,8 +157,8 @@ export default function AlertsPage() {
                 <BellRing className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
                 <span className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Open</span>
               </div>
-              <p className="text-3xl font-bold">{openAlerts.length}</p>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Incidents still awaiting operator action</p>
+              <p className="text-3xl font-bold">{summary.open}</p>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Active incidents requiring review</p>
             </CardContent>
           </Card>
 
@@ -105,8 +168,8 @@ export default function AlertsPage() {
                 <Siren className="h-5 w-5 text-rose-600 dark:text-rose-400" />
                 <span className="text-xs uppercase tracking-[0.2em] text-rose-500 dark:text-rose-300">Critical</span>
               </div>
-              <p className="text-3xl font-bold">{criticalAlerts.length}</p>
-              <p className="mt-1 text-sm text-rose-700 dark:text-rose-200">Major disruptions requiring immediate review</p>
+              <p className="text-3xl font-bold">{summary.critical}</p>
+              <p className="mt-1 text-sm text-rose-700 dark:text-rose-200">Major disruptions in controller or fabric state</p>
             </CardContent>
           </Card>
 
@@ -116,8 +179,8 @@ export default function AlertsPage() {
                 <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 <span className="text-xs uppercase tracking-[0.2em] text-amber-500 dark:text-amber-300">Warning</span>
               </div>
-              <p className="text-3xl font-bold">{warningAlerts.length}</p>
-              <p className="mt-1 text-sm text-amber-700 dark:text-amber-200">Early signals that may degrade the topology</p>
+              <p className="text-3xl font-bold">{summary.warning}</p>
+              <p className="mt-1 text-sm text-amber-700 dark:text-amber-200">Degraded ports or pending flow activity</p>
             </CardContent>
           </Card>
 
@@ -127,21 +190,21 @@ export default function AlertsPage() {
                 <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 <span className="text-xs uppercase tracking-[0.2em] text-emerald-500 dark:text-emerald-300">Resolved</span>
               </div>
-              <p className="text-3xl font-bold">{alerts.length - openAlerts.length}</p>
+              <p className="text-3xl font-bold">{summary.resolved}</p>
               <p className="mt-1 text-sm text-emerald-700 dark:text-emerald-200">Historical incidents already closed</p>
             </CardContent>
           </Card>
         </section>
 
         <section className="grid grid-cols-1 gap-8 xl:grid-cols-3">
-          <div className="xl:col-span-2 space-y-6">
+          <div className="space-y-6 xl:col-span-2">
             <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
               <CardHeader>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <CardTitle className="text-xl">Alert Feed</CardTitle>
                     <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      Filter incidents by resolution state and severity to prepare the future operations view.
+                      Filter incidents by state and severity, then resolve acknowledged items from the database-backed timeline.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -187,17 +250,17 @@ export default function AlertsPage() {
                   <div className="flex min-h-[320px] items-center justify-center rounded-2xl bg-gray-50 dark:bg-gray-950">
                     <p className="text-gray-500 dark:text-gray-400">Loading alerts...</p>
                   </div>
-                ) : filteredAlerts.length === 0 ? (
+                ) : alerts.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-emerald-300 bg-emerald-50 p-8 text-center dark:border-emerald-900 dark:bg-emerald-950/30">
                     <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-emerald-500" />
                     <p className="text-lg font-semibold">No alerts for the current filter</p>
                     <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                      This is the target state once the platform is connected to live network telemetry.
+                      The network looks healthy for this filter set.
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {filteredAlerts.map((alert) => {
+                    {alerts.map((alert) => {
                       const severityStyles = {
                         critical:
                           "border-rose-200 bg-rose-50 dark:border-rose-900/70 dark:bg-rose-950/20",
@@ -240,7 +303,7 @@ export default function AlertsPage() {
                               <div>
                                 <p className="text-base font-semibold">{alert.message}</p>
                                 <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                                  Alert source {alert.deviceId ? `for device ${alert.deviceId}` : "from topology monitoring"}.
+                                  Alert source {alert.deviceId ? `for device ${alert.deviceId}` : "from controller-wide monitoring"}.
                                 </p>
                               </div>
 
@@ -251,7 +314,7 @@ export default function AlertsPage() {
                                 </div>
                                 <div className="rounded-2xl bg-white/60 p-3 dark:bg-gray-950/60">
                                   <p className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Device</p>
-                                  <p className="mt-2 font-mono text-xs sm:text-sm">{alert.deviceId ?? "Topology-wide"}</p>
+                                  <p className="mt-2 font-mono text-xs sm:text-sm">{alert.deviceId ?? "Controller-wide"}</p>
                                 </div>
                                 <div className="rounded-2xl bg-white/60 p-3 dark:bg-gray-950/60">
                                   <p className="text-xs uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">Resolved</p>
@@ -262,13 +325,18 @@ export default function AlertsPage() {
                               </div>
                             </div>
 
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="self-start text-gray-500 hover:text-rose-500 dark:text-gray-400"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {!alert.resolved && (source === "database" || source === "local-store") ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="self-start border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
+                                onClick={() => handleResolveAlert(alert.id)}
+                                disabled={resolvingAlertId === alert.id}
+                              >
+                                <ShieldCheck className="mr-2 h-4 w-4" />
+                                {resolvingAlertId === alert.id ? "Resolving..." : "Resolve"}
+                              </Button>
+                            ) : null}
                           </div>
                         </div>
                       )
@@ -304,7 +372,7 @@ export default function AlertsPage() {
                       </div>
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      This panel can later show correlated metrics, port counters, and remediation actions from the backend.
+                      The alert feed is now backed by controller state, link status, port health, and pending flow detection.
                     </p>
                   </>
                 ) : (
@@ -317,20 +385,20 @@ export default function AlertsPage() {
 
             <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
               <CardHeader>
-                <CardTitle className="text-xl">Response Guidance</CardTitle>
+                <CardTitle className="text-xl">Detection Rules</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4 text-sm text-gray-600 dark:text-gray-400">
                 <div className="flex items-start gap-3">
                   <ShieldAlert className="mt-0.5 h-4 w-4 text-rose-500" />
-                  <p>Critical alerts should later trigger notifications, escalation, and operator acknowledgement.</p>
+                  <p>Controller unreachable, device loss, and inactive links are raised as critical incidents.</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <Clock3 className="mt-0.5 h-4 w-4 text-amber-500" />
-                  <p>Warning events can be kept visible to detect early congestion, link degradation, or controller issues.</p>
+                  <p>Enabled-but-not-live ports and pending flow rules raise warning or critical alerts depending on impact.</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <Radar className="mt-0.5 h-4 w-4 text-cyan-500" />
-                  <p>Once the backend is connected, this page can merge ONOS events, cron checks, and stored history.</p>
+                  <p>Resolved alerts remain visible in PostgreSQL to keep a useful operational history.</p>
                 </div>
               </CardContent>
             </Card>
@@ -342,15 +410,19 @@ export default function AlertsPage() {
               <CardContent className="space-y-3 text-sm">
                 <div className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950">
                   <span>Critical</span>
-                  <span className="font-semibold">{criticalAlerts.length}</span>
+                  <span className="font-semibold">{summary.critical}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950">
                   <span>Warning</span>
-                  <span className="font-semibold">{warningAlerts.length}</span>
+                  <span className="font-semibold">{summary.warning}</span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950">
                   <span>Info</span>
-                  <span className="font-semibold">{infoAlerts.length}</span>
+                  <span className="font-semibold">{summary.info}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-950">
+                  <span>Total history</span>
+                  <span className="font-semibold">{summary.total}</span>
                 </div>
               </CardContent>
             </Card>
@@ -361,7 +433,7 @@ export default function AlertsPage() {
   )
 }
 
-function formatAlertTimestamp(value: Date) {
+function formatAlertTimestamp(value: string | Date) {
   return new Intl.DateTimeFormat("en-GB", {
     dateStyle: "medium",
     timeStyle: "short",

@@ -94,6 +94,15 @@ export interface TopologyNode {
   type: "switch" | "router" | "host"
   status: "active" | "inactive"
   size?: number
+  available?: boolean
+  manufacturer?: string | null
+  serialNumber?: string | null
+  hwVersion?: string | null
+  swVersion?: string | null
+  mac?: string | null
+  vlan?: string | null
+  ipAddresses?: string[]
+  location?: string | null
 }
 
 export interface TopologyEdge {
@@ -102,6 +111,9 @@ export interface TopologyEdge {
   target: string
   label?: string
   status: "active" | "inactive"
+  sourcePort?: string | null
+  targetPort?: string | null
+  kind?: "infrastructure" | "access"
 }
 
 export interface User {

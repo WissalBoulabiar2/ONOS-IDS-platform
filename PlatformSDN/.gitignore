@@ -82,6 +82,11 @@ out
 
 # Local dev diagnostics
 .codex-dev.err
+backend/dev-store.json
+backend-runtime.log
+backend-runtime.err.log
+frontend-runtime.log
+frontend-runtime.err.log
 
 # Nuxt.js build / generate output
 .nuxt

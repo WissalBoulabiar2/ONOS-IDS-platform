@@ -1,234 +1,131 @@
 "use client"
 
-import type React from "react"
-
-import Navigation from "@/components/navigation"
+import React, { useState } from "react"
+import Image from "next/image"
+import { useRouter } from "next/navigation"
+import { ArrowRight, Eye, EyeOff } from "lucide-react"
+import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Activity, ArrowRight, Eye, EyeOff, Lock, Server, Shield } from "lucide-react"
-import Link from "next/link"
-import { useState } from "react"
 
 export default function LoginPage() {
+  const router = useRouter()
+  const { login } = useAuth()
   const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState("")
+  const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
-  const [rememberMe, setRememberMe] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log("Login attempt:", { email, password, rememberMe })
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
+    try {
+      setLoading(true)
+      setError(null)
+      await login({ identifier, password, rememberMe })
+      router.replace("/dashboard")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Authentication failed")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950">
-      <Navigation />
-
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-50 to-white px-4 py-12 dark:from-gray-900 dark:to-gray-950 sm:px-6 lg:px-8">
-        <div className="w-full max-w-md space-y-8">
-          <div className="text-center">
-            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-cyan-100">
-              <Shield className="h-8 w-8 text-cyan-600" />
-            </div>
-            <h2 className="text-3xl font-serif font-black text-gray-900 dark:text-white">SDN Control Access</h2>
-            <p className="mt-2 font-sans text-gray-600 dark:text-gray-400">
-              Sign in to supervise topology, devices, flows, and network alerts.
-            </p>
-          </div>
-
-          <Card className="border-0 shadow-xl">
-            <CardHeader className="pb-4 text-center">
-              <CardTitle className="text-2xl font-serif font-bold">Operator Login</CardTitle>
-              <CardDescription className="font-sans">
-                Authenticate to access the centralized SDN dashboard.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Email or username
-                  </Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-3 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                    placeholder="admin@sdn.local"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Password
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-3 pr-10 text-gray-900 focus:border-cyan-500 focus:outline-none focus:ring-cyan-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                      placeholder="Enter your password"
-                    />
-                    <button
-                      type="button"
-                      className="absolute inset-y-0 right-0 flex items-center pr-3"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-5 w-5 text-gray-400" />
-                      ) : (
-                        <Eye className="h-5 w-5 text-gray-400" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="remember-me"
-                      checked={rememberMe}
-                      onCheckedChange={(checked) => setRememberMe(checked as boolean)}
-                    />
-                    <Label htmlFor="remember-me" className="text-sm text-gray-600 dark:text-gray-400">
-                      Keep session active
-                    </Label>
-                  </div>
-
-                  <Link
-                    href="/forgot-password"
-                    className="text-sm font-medium text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full rounded-lg bg-cyan-600 px-4 py-3 text-sm font-medium text-white hover:bg-cyan-700"
-                >
-                  Sign In
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </form>
-
-              <div className="mt-6">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-300" />
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="bg-white px-2 text-gray-500">Need a new account?</span>
-                  </div>
-                </div>
-
-                <div className="mt-6">
-                  <Link href="/register">
-                    <Button
-                      variant="outline"
-                      className="w-full border-cyan-600 bg-transparent text-cyan-600 hover:bg-cyan-50"
-                    >
-                      Create Operator Account
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-1 gap-3 text-left sm:grid-cols-3">
-            <div className="rounded-lg border border-gray-200 bg-white/80 p-3 dark:border-gray-800 dark:bg-gray-900/80">
-              <div className="mb-2 flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
-                <Server className="h-4 w-4" />
-                <span className="text-xs font-semibold uppercase tracking-wide">Controller</span>
-              </div>
-              <p className="text-sm text-gray-700 dark:text-gray-300">ONOS local instance</p>
-            </div>
-            <div className="rounded-lg border border-gray-200 bg-white/80 p-3 dark:border-gray-800 dark:bg-gray-900/80">
-              <div className="mb-2 flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
-                <Activity className="h-4 w-4" />
-                <span className="text-xs font-semibold uppercase tracking-wide">Mode</span>
-              </div>
-              <p className="text-sm text-gray-700 dark:text-gray-300">Network supervision</p>
-            </div>
-            <div className="rounded-lg border border-gray-200 bg-white/80 p-3 dark:border-gray-800 dark:bg-gray-900/80">
-              <div className="mb-2 flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
-                <Lock className="h-4 w-4" />
-                <span className="text-xs font-semibold uppercase tracking-wide">Access</span>
-              </div>
-              <p className="text-sm text-gray-700 dark:text-gray-300">Admin and operator roles</p>
-            </div>
-          </div>
-
-          <div className="text-center">
-            <p className="text-xs font-sans text-gray-500 dark:text-gray-400">
-              <strong>Test Account:</strong>
-              <br />
-              Email: admin@sdn.local | Password: admin123
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <footer className="bg-gray-900 py-16 text-white dark:bg-black">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
-            <div>
-              <h3 className="mb-4 text-2xl font-serif font-black text-cyan-400">SDN Platform</h3>
-              <p className="mb-4 font-sans text-gray-400">
-                Centralized supervision and configuration platform for software-defined networks based on ONOS.
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f4f7fb_0%,#eaf0f7_100%)] px-6 py-10 dark:bg-[linear-gradient(180deg,#08111d_0%,#0c1728_100%)] sm:px-10">
+      <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl items-center justify-center">
+        <Card className="w-full max-w-md rounded-[2rem] border-slate-200 bg-white/92 shadow-[0_32px_90px_rgba(15,23,42,0.14)] dark:border-slate-800 dark:bg-slate-950/90 dark:shadow-black/40">
+          <CardContent className="p-8 sm:p-10">
+            <div className="mb-8 flex flex-col items-center text-center">
+              <Image
+                src="/images/Alliance.png"
+                alt="Alliance logo"
+                width={120}
+                height={120}
+                className="mb-5 h-auto w-[96px] object-contain sm:w-[112px]"
+                priority
+              />
+              <h1 className="text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
+                Login
+              </h1>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+                Sign in to continue to your workspace.
               </p>
-              <div className="text-sm font-sans text-gray-400">
-                <p>Open Network Operating System (ONOS)</p>
-                <p>Version: 2.8.1</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-2">
+                <Label htmlFor="identifier" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Email or username
+                </Label>
+                <Input
+                  id="identifier"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  value={identifier}
+                  onChange={(event) => setIdentifier(event.target.value)}
+                  placeholder="admin@sdn.local"
+                  className="h-12 border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900"
+                />
               </div>
-            </div>
-            <div>
-              <h4 className="mb-4 text-lg font-serif font-bold">Platform</h4>
-              <ul className="space-y-2 font-sans text-gray-400">
-                <li><Link href="/" className="transition-colors hover:text-cyan-400">Dashboard</Link></li>
-                <li><Link href="/topology" className="transition-colors hover:text-cyan-400">Topology</Link></li>
-                <li><Link href="/devices" className="transition-colors hover:text-cyan-400">Devices</Link></li>
-                <li><Link href="/flows" className="transition-colors hover:text-cyan-400">Flow Rules</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="mb-4 text-lg font-serif font-bold">Monitoring</h4>
-              <ul className="space-y-2 font-sans text-gray-400">
-                <li><Link href="/alerts" className="transition-colors hover:text-cyan-400">Active Alerts</Link></li>
-                <li><Link href="/configuration" className="transition-colors hover:text-cyan-400">Controller Settings</Link></li>
-                <li><Link href="/login" className="transition-colors hover:text-cyan-400">Access Control</Link></li>
-                <li><Link href="/forgot-password" className="transition-colors hover:text-cyan-400">Password Recovery</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="mb-4 text-lg font-serif font-bold">Environment</h4>
-              <div className="space-y-2 font-sans text-gray-400">
-                <p>Frontend: Next.js control center</p>
-                <p>Backend: ONOS proxy API</p>
-                <p>Mode: Local development lab</p>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Enter your password"
+                    className="h-12 border-slate-300 bg-white pr-11 dark:border-slate-700 dark:bg-slate-900"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400"
+                    onClick={() => setShowPassword((current) => !current)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
-          <div className="mt-12 border-t border-gray-800 pt-8 text-center">
-            <p className="font-sans text-gray-400">
-              © 2024 SDN Platform. Centralized SDN supervision interface built for ONOS-based environments.
-            </p>
-          </div>
-        </div>
-      </footer>
+
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/80">
+                <Checkbox
+                  id="remember-me"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(Boolean(checked))}
+                />
+                <Label htmlFor="remember-me" className="text-sm text-slate-600 dark:text-slate-400">
+                  Keep session active
+                </Label>
+              </div>
+
+              {error && (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-200">
+                  {error}
+                </div>
+              )}
+
+              <Button type="submit" className="h-12 w-full bg-cyan-700 text-white hover:bg-cyan-800" disabled={loading}>
+                {loading ? "Signing in..." : "Login"}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }
