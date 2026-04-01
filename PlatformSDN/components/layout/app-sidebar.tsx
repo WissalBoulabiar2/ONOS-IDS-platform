@@ -30,46 +30,46 @@ const navigationItems: NavItem[] = [
   {
     icon: <BarChart3 className="h-5 w-5" />,
     label: "Dashboard",
-    href: "/dashboard",
+    href: "/(authenticated)/dashboard",
   },
   {
     icon: <Network className="h-5 w-5" />,
     label: "Network",
     items: [
-      { icon: <Layers className="h-4 w-4" />, label: "Topology", href: "/network/topology" },
-      { icon: <Activity className="h-4 w-4" />, label: "Devices", href: "/network/devices" },
-      { icon: <Wifi className="h-4 w-4" />, label: "Links", href: "/network/links" },
-      { icon: <AlertCircle className="h-4 w-4" />, label: "Hosts", href: "/network/hosts" },
+      { icon: <Layers className="h-4 w-4" />, label: "Topology", href: "/(authenticated)/network/topology" },
+      { icon: <Activity className="h-4 w-4" />, label: "Devices", href: "/(authenticated)/network/devices" },
+      { icon: <Wifi className="h-4 w-4" />, label: "Links", href: "/(authenticated)/network/links" },
+      { icon: <AlertCircle className="h-4 w-4" />, label: "Hosts", href: "/(authenticated)/network/hosts" },
     ],
   },
   {
     icon: <Wifi className="h-5 w-5" />,
     label: "Services",
     items: [
-      { icon: <Layers className="h-4 w-4" />, label: "Intents", href: "/services/intents" },
-      { icon: <Activity className="h-4 w-4" />, label: "Flows", href: "/services/flows" },
-      { icon: <Network className="h-4 w-4" />, label: "VPLS", href: "/services/vpls" },
-      { icon: <Wifi className="h-4 w-4" />, label: "Optical", href: "/services/optical" },
+      { icon: <Layers className="h-4 w-4" />, label: "Intents", href: "/(authenticated)/services/intents" },
+      { icon: <Activity className="h-4 w-4" />, label: "Flows", href: "/(authenticated)/services/flows" },
+      { icon: <Network className="h-4 w-4" />, label: "VPLS", href: "/(authenticated)/services/vpls" },
+      { icon: <Wifi className="h-4 w-4" />, label: "Optical", href: "/(authenticated)/services/optical" },
     ],
   },
   {
     icon: <Cog className="h-5 w-5" />,
     label: "Configuration",
-    href: "/configuration",
+    href: "/(authenticated)/configuration",
   },
   {
     icon: <BarChart3 className="h-5 w-5" />,
     label: "Monitoring",
     items: [
-      { icon: <Activity className="h-4 w-4" />, label: "Cluster Status", href: "/monitoring/cluster" },
-      { icon: <BarChart3 className="h-4 w-4" />, label: "Metrics", href: "/monitoring/metrics" },
-      { icon: <Activity className="h-4 w-4" />, label: "Statistics", href: "/monitoring/statistics" },
+      { icon: <Activity className="h-4 w-4" />, label: "Cluster Status", href: "/(authenticated)/monitoring/cluster" },
+      { icon: <BarChart3 className="h-4 w-4" />, label: "Metrics", href: "/(authenticated)/monitoring/metrics" },
+      { icon: <Activity className="h-4 w-4" />, label: "Statistics", href: "/(authenticated)/monitoring/statistics" },
     ],
   },
   {
     icon: <AlertCircle className="h-5 w-5" />,
     label: "Alerts",
-    href: "/alerts",
+    href: "/(authenticated)/alerts",
   },
 ]
 
@@ -78,9 +78,9 @@ const adminItems: NavItem[] = [
     icon: <Cog className="h-5 w-5" />,
     label: "Administration",
     items: [
-      { icon: <Activity className="h-4 w-4" />, label: "Users", href: "/admin/users" },
-      { icon: <Cog className="h-4 w-4" />, label: "Roles", href: "/admin/roles" },
-      { icon: <AlertCircle className="h-4 w-4" />, label: "Audit Logs", href: "/admin/audit" },
+      { icon: <Activity className="h-4 w-4" />, label: "Users", href: "/(authenticated)/admin/users" },
+      { icon: <Cog className="h-4 w-4" />, label: "Roles", href: "/(authenticated)/admin/roles" },
+      { icon: <AlertCircle className="h-4 w-4" />, label: "Audit Logs", href: "/(authenticated)/admin/audit" },
     ],
   },
 ]
@@ -190,7 +190,7 @@ export function AppSidebar() {
           {/* Settings Section */}
           <div className="border-t border-sidebar-border pt-4 mt-4">
             <Link
-              href="/settings"
+              href="/(authenticated)/settings"
               className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-sidebar-foreground hover:bg-sidebar/80 hover:text-primary"
             >
               <Cog className="h-5 w-5" />
