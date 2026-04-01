@@ -28,6 +28,7 @@ Regle de travail:
 - chatbot frontend local modernise dans le dashboard avec widget flottant AI
 - dashboard enrichi avec runtime controller, snapshot mastership et top link hotspots
 - dashboard enrichi avec metrics controller ONOS et resume VPLS actif
+- nouveau shell frontend `AppHeader` + `AppSidebar` visible sur les pages protegees principales
 - `devices` branche au backend
 - `dashboard` branche au backend
 - `topology` branchee au backend reel
@@ -650,6 +651,7 @@ Pages cibles a construire:
 - chatbot dashboard redesign en widget flottant `AI`
 - dashboard enrichi avec runtime controller, snapshot mastership et classement des hotspots liens
 - dashboard enrichi avec metrics ONOS et resume VPLS actif
+- shell applicatif moderne active sur `dashboard`, `devices`, `topology`, `flows`, `alerts`, `services`, `configuration`, `admin/users`
 - `services` ajoutee pour VPLS
 - `configuration` alignee avec les valeurs backend actuelles
 - guide agent `AGENT_PLATFORMSDN.md` ajoute pour cadrer les prochaines sessions

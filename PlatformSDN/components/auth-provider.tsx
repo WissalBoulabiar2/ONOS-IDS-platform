@@ -61,6 +61,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const logout = () => {
+    // Notify backend of logout
+    fetch("/api/auth/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    }).catch(() => {
+      // Ignore errors, still logout locally
+    })
+
+    // Clear local session
     clearAuthSession()
     setUser(null)
     router.push("/login")

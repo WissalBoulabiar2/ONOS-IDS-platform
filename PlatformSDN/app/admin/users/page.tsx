@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useCallback, useEffect, useState } from "react"
-import Navigation from "@/components/navigation"
 import { useAuth } from "@/components/auth-provider"
+import { AuthenticatedShell } from "@/components/layout/authenticated-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -79,10 +79,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950">
-      <Navigation />
-
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <AuthenticatedShell contentClassName="max-w-7xl">
         <section className="mb-8 rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-950 via-cyan-950 to-slate-900 p-6 text-white shadow-xl sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
@@ -258,7 +255,6 @@ export default function AdminUsersPage() {
             </Card>
           </div>
         </section>
-      </main>
-    </div>
+    </AuthenticatedShell>
   )
 }

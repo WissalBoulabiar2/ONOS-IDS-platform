@@ -16,6 +16,8 @@ import { useState } from "react"
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -30,11 +32,59 @@ export default function RegisterPage() {
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+    setError("")
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Registration attempt:", formData)
+    setError("")
+
+    // Validation
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.username || !formData.password) {
+      setError("All fields are required")
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match")
+      return
+    }
+
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters")
+      return
+    }
+
+    if (!formData.agreeToTerms) {
+      setError("You must agree to the terms")
+      return
+    }
+
+    try {
+      setIsLoading(true)
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          fullName: `${formData.firstName} ${formData.lastName}`,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || "Registration failed")
+      }
+
+      // Success - redirect to login
+      window.location.href = "/login?registered=true"
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Registration failed")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -62,6 +112,11 @@ export default function RegisterPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
+                {error && (
+                  <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-400">
+                    {error}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="firstName" className="text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -242,11 +297,11 @@ export default function RegisterPage() {
 
                 <Button
                   type="submit"
-                  disabled={!formData.agreeToTerms}
+                  disabled={!formData.agreeToTerms || isLoading}
                   className="w-full rounded-lg bg-cyan-600 px-4 py-3 text-sm font-medium text-white hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Create Platform User
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  {isLoading ? "Creating Account..." : "Create Platform User"}
+                  {!isLoading && <ArrowRight className="ml-2 h-4 w-4" />}
                 </Button>
               </form>
 

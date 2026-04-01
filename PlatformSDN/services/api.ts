@@ -331,6 +331,42 @@ function getAuthToken() {
   return Cookies.get(AUTH_TOKEN_COOKIE)
 }
 
+function isTokenExpired(token: string | null = null): boolean {
+  if (!token) {
+    token = getAuthToken()
+  }
+
+  if (!token) {
+    return true
+  }
+
+  try {
+    // Decode JWT payload (format: header.payload.signature)
+    const parts = token.split(".")
+    if (parts.length !== 3) {
+      return true
+    }
+
+    // Decode base64url payload
+    const payload = JSON.parse(
+      Buffer.from(
+        parts[1].replace(/-/g, "+").replace(/_/g, "/"),
+        "base64"
+      ).toString("utf-8")
+    ) as { exp?: number }
+
+    // Check if token is expired (with 5-minute buffer)
+    if (!payload.exp) {
+      return true
+    }
+
+    const now = Math.floor(Date.now() / 1000)
+    return payload.exp - 300 < now // Refresh if expiring in next 5 minutes
+  } catch {
+    return true
+  }
+}
+
 export function hasAuthSession() {
   return Boolean(getAuthToken())
 }
@@ -358,6 +394,15 @@ async function requestJson<T>(
 ): Promise<T> {
   const headers = new Headers(options.headers || {})
   const token = getAuthToken()
+
+  // Check token expiration
+  if (requiresAuth && token && isTokenExpired(token)) {
+    clearAuthSession()
+    if (typeof window !== "undefined") {
+      window.location.href = "/login?expired=true"
+    }
+    throw new Error("Session expired")
+  }
 
   if (requiresAuth && token) {
     headers.set("Authorization", `Bearer ${token}`)

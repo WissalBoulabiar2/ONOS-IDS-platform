@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import Navigation from "@/components/navigation"
+import { AuthenticatedShell } from "@/components/layout/authenticated-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -54,10 +54,7 @@ const statusCards = [
 
 export default function ConfigurationPage() {
   return (
-    <div className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-white">
-      <Navigation />
-
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+    <AuthenticatedShell contentClassName="max-w-6xl">
         <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="mb-3 flex items-center gap-2">
@@ -134,11 +131,17 @@ export default function ConfigurationPage() {
                 </div>
                 <div>
                   <Label className="mb-2 block">Username</Label>
-                  <Input type="text" defaultValue="karaf" className="bg-white dark:bg-gray-950" />
+                  <Input type="text" placeholder="••••••••" disabled className="bg-white dark:bg-gray-950 cursor-not-allowed opacity-50" />
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                    ℹ️ ONOS credentials are securely managed by the backend
+                  </p>
                 </div>
                 <div>
                   <Label className="mb-2 block">Password</Label>
-                  <Input type="password" defaultValue="karaf" className="bg-white dark:bg-gray-950" />
+                  <Input type="password" placeholder="••••••••" disabled className="bg-white dark:bg-gray-950 cursor-not-allowed opacity-50" />
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                    ℹ️ Not displayed for security reasons
+                  </p>
                 </div>
                 <div>
                   <Label className="mb-2 block">Northbound API Path</Label>
@@ -292,7 +295,6 @@ export default function ConfigurationPage() {
             Preview Integration
           </Button>
         </div>
-      </main>
-    </div>
+    </AuthenticatedShell>
   )
 }

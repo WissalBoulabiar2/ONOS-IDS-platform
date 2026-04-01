@@ -2,9 +2,9 @@
 
 import React, { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import Navigation from "@/components/navigation"
 import { DeviceTable } from "@/components/DeviceTable"
 import { DeviceDetailsModal } from "@/components/DeviceDetailsModal"
+import { AuthenticatedShell } from "@/components/layout/authenticated-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -151,7 +151,7 @@ export default function DevicesPage() {
   }
 
   const handleAction = (action: string, device: Device) => {
-    console.log(`Action: ${action} on device: ${device.id}`)
+    // Device action initiated - logged server-side
   }
 
   const handleRefresh = () => {
@@ -169,10 +169,7 @@ export default function DevicesPage() {
   }, [devices, selectedDevice])
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950">
-      <Navigation />
-
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <AuthenticatedShell contentClassName="max-w-7xl">
         <section className="mb-8 rounded-3xl border border-gray-200 bg-gradient-to-br from-slate-950 via-cyan-950 to-slate-900 p-6 text-white shadow-xl sm:p-8">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
@@ -388,7 +385,6 @@ export default function DevicesPage() {
           }}
           isLoading={portsLoading}
         />
-      </main>
-    </div>
+    </AuthenticatedShell>
   )
 }

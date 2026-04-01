@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import Navigation from "@/components/navigation"
+import { AuthenticatedShell } from "@/components/layout/authenticated-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -159,17 +159,14 @@ export default function TopologyPage() {
       setExporting(true)
       await exportToPDF("topology-container", `SDN-Topology-${new Date().toISOString().split("T")[0]}.pdf`)
     } catch (exportError) {
-      console.error("Failed to export topology:", exportError)
+      // Silently handle export errors
     } finally {
       setExporting(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-white">
-      <Navigation />
-
-      <main id="topology-container" className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <AuthenticatedShell mainId="topology-container" contentClassName="max-w-7xl">
         <section className="mb-8 rounded-3xl border border-gray-200 bg-gradient-to-br from-slate-950 via-cyan-950 to-slate-900 p-6 text-white shadow-xl sm:p-8">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
@@ -563,7 +560,6 @@ export default function TopologyPage() {
             </Card>
           </div>
         </section>
-      </main>
-    </div>
+    </AuthenticatedShell>
   )
 }

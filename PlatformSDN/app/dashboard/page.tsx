@@ -14,8 +14,8 @@ import {
   Pie,
   Cell,
 } from "recharts"
-import Navigation from "@/components/navigation"
 import { DashboardChatbot } from "@/components/dashboard-chatbot"
+import { AuthenticatedShell } from "@/components/layout/authenticated-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -96,7 +96,6 @@ export default function DashboardPage() {
       setDataSource(sources.size === 1 ? (Array.from(sources)[0] as "database" | "onos") : "mixed")
       setLastSyncAt(Date.now())
     } catch (err) {
-      console.error("Error fetching dashboard data:", err)
       setError(err instanceof Error ? err.message : "Failed to fetch dashboard data")
     } finally {
       refreshInFlightRef.current = false
@@ -127,7 +126,7 @@ export default function DashboardPage() {
       setExporting(true)
       await exportToPDF("dashboard-container", `SDN-Dashboard-${new Date().toISOString().split("T")[0]}.pdf`)
     } catch (exportError) {
-      console.error("Failed to export PDF:", exportError)
+      // Silently handle export errors
     } finally {
       setExporting(false)
     }
@@ -213,10 +212,7 @@ export default function DashboardPage() {
   )
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-950">
-      <Navigation />
-
-      <main id="dashboard-container" className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <AuthenticatedShell mainId="dashboard-container" contentClassName="max-w-7xl">
         <section className="mb-8 rounded-3xl border border-gray-200 bg-gradient-to-br from-slate-950 via-cyan-950 to-slate-900 p-6 text-white shadow-xl sm:p-8">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
@@ -882,8 +878,7 @@ export default function DashboardPage() {
         </section>
 
         <DashboardChatbot stats={stats} overview={overview} linkLoadCount={linkLoad.length} />
-      </main>
-    </div>
+    </AuthenticatedShell>
   )
 }
 

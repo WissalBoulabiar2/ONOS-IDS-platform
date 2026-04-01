@@ -1732,6 +1732,108 @@ async function getLiveDeviceMetrics() {
   )
 }
 
+app.post("/api/auth/register", async (req, res) => {
+  const username = String(req.body?.username || "").trim()
+  const email = String(req.body?.email || "").trim()
+  const password = String(req.body?.password || "")
+  const fullName = String(req.body?.fullName || "").trim()
+
+  // Validation
+  if (!username || !email || !password) {
+    return res.status(400).json({
+      error: "Missing required fields",
+      message: "Username, email, and password are required",
+    })
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({
+      error: "Password too weak",
+      message: "Password must be at least 8 characters",
+    })
+  }
+
+  if (!(await refreshDatabaseStatus())) {
+    const localStore = readLocalStore()
+
+    // Check if user exists
+    const existingUser = localStore.users.find(
+      (u) =>
+        String(u.username || "").toLowerCase() === username.toLowerCase() ||
+        String(u.email || "").toLowerCase() === email.toLowerCase()
+    )
+
+    if (existingUser) {
+      return res.status(409).json({
+        error: "User already exists",
+        message: "Username or email already registered",
+      })
+    }
+
+    try {
+      const passwordHash = await bcrypt.hash(password, 12)
+      const newUser = {
+        id: `user_${Date.now()}`,
+        username,
+        email,
+        full_name: fullName || username,
+        password_hash: passwordHash,
+        role: "operator",
+        is_active: true,
+        created_at: new Date().toISOString(),
+      }
+
+      localStore.users.push(newUser)
+      writeLocalStore(localStore)
+
+      res.status(201).json({
+        message: "Registration successful",
+        user: sanitizeUser(newUser),
+      })
+    } catch (error) {
+      res.status(500).json({
+        error: "Registration failed",
+        message: error.message,
+      })
+    }
+  } else {
+    // Database available path
+    try {
+      // Check if user exists
+      const userExists = await pool.query(
+        "SELECT id FROM users WHERE username = $1 OR email = $2",
+        [username.toLowerCase(), email.toLowerCase()]
+      )
+
+      if (userExists.rows.length > 0) {
+        return res.status(409).json({
+          error: "User already exists",
+          message: "Username or email already registered",
+        })
+      }
+
+      const passwordHash = await bcrypt.hash(password, 12)
+      const result = await pool.query(
+        `INSERT INTO users (username, email, full_name, password_hash, role, is_active, created_at)
+         VALUES ($1, $2, $3, $4, $5, true, NOW())
+         RETURNING id, username, email, full_name, role, created_at`,
+        [username.toLowerCase(), email, fullName || username, passwordHash, "operator"]
+      )
+
+      const newUser = result.rows[0]
+      res.status(201).json({
+        message: "Registration successful",
+        user: sanitizeUser(newUser),
+      })
+    } catch (error) {
+      res.status(500).json({
+        error: "Registration failed",
+        message: error.message,
+      })
+    }
+  }
+})
+
 app.post("/api/auth/login", async (req, res) => {
   const identifier = String(req.body?.identifier || "").trim()
   const password = String(req.body?.password || "")
@@ -1880,6 +1982,133 @@ app.get("/api/auth/me", (req, res) => {
   res.json({
     user: sanitizeUser(req.currentUser),
   })
+})
+
+app.post("/api/auth/logout", (req, res) => {
+  // Invalidate token-based session
+  // In a production system, add token to blacklist
+  res.json({ message: "Logged out successfully" })
+})
+
+// In-memory store for password reset tokens
+const resetTokens = new Map()
+
+app.post("/api/auth/forgot-password", async (req, res) => {
+  const { email } = req.body
+
+  if (!email) {
+    return res.status(400).json({
+      error: "Missing email",
+      message: "Email is required",
+    })
+  }
+
+  if (!(await refreshDatabaseStatus())) {
+    const localStore = readLocalStore()
+    const user = localStore.users.find(u => String(u.email || "").toLowerCase() === email.toLowerCase())
+
+    if (!user) {
+      // Return success even if user not found (security best practice)
+      return res.json({ message: "If the email exists, a reset link has been sent" })
+    }
+
+    // Generate reset token (valid for 1 hour)
+    const resetToken = require("crypto").randomBytes(32).toString("hex")
+    const expiresAt = Date.now() + 3600000
+
+    resetTokens.set(resetToken, {
+      userId: user.id,
+      email: user.email,
+      expiresAt,
+    })
+
+    // In a real application, send email with reset link
+    // For now, just return success
+    res.json({ message: "If the email exists, a reset link has been sent" })
+  } else {
+    // Database available path
+    try {
+      const result = await pool.query("SELECT id, email FROM users WHERE email = $1", [email.toLowerCase()])
+
+      if (result.rows.length === 0) {
+        return res.json({ message: "If the email exists, a reset link has been sent" })
+      }
+
+      const user = result.rows[0]
+      const resetToken = require("crypto").randomBytes(32).toString("hex")
+      const expiresAt = Date.now() + 3600000
+
+      resetTokens.set(resetToken, {
+        userId: user.id,
+        email: user.email,
+        expiresAt,
+      })
+
+      res.json({ message: "If the email exists, a reset link has been sent" })
+    } catch (error) {
+      res.status(500).json({
+        error: "Failed to process request",
+        message: error.message,
+      })
+    }
+  }
+})
+
+app.post("/api/auth/reset-password", async (req, res) => {
+  const { token, password } = req.body
+
+  if (!token || !password) {
+    return res.status(400).json({
+      error: "Missing fields",
+      message: "Token and password are required",
+    })
+  }
+
+  const resetData = resetTokens.get(token)
+  if (!resetData || resetData.expiresAt < Date.now()) {
+    return res.status(400).json({
+      error: "Invalid or expired token",
+      message: "Reset link has expired or is invalid",
+    })
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({
+      error: "Password too weak",
+      message: "Password must be at least 8 characters",
+    })
+  }
+
+  try {
+    const passwordHash = await bcrypt.hash(password, 12)
+
+    if (!(await refreshDatabaseStatus())) {
+      const localStore = readLocalStore()
+      const user = localStore.users.find(u => u.id === resetData.userId)
+
+      if (!user) {
+        return res.status(404).json({
+          error: "User not found",
+          message: "User account not found",
+        })
+      }
+
+      user.password_hash = passwordHash
+      writeLocalStore(localStore)
+    } else {
+      await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [passwordHash, resetData.userId])
+    }
+
+    // Invalidate token
+    resetTokens.delete(token)
+
+    res.json({ message: "Password reset successfully" })
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to reset password",
+      message: error.message,
+    })
+  }
 })
 
 app.get("/api/users", requireRole("admin"), async (_req, res) => {

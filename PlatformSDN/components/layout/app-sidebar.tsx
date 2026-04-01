@@ -13,8 +13,10 @@ import {
   Network,
   Wifi,
   Menu,
+  ShieldCheck,
   X,
 } from "lucide-react"
+import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -30,72 +32,54 @@ const navigationItems: NavItem[] = [
   {
     icon: <BarChart3 className="h-5 w-5" />,
     label: "Dashboard",
-    href: "/(authenticated)/dashboard",
+    href: "/dashboard",
   },
   {
     icon: <Network className="h-5 w-5" />,
     label: "Network",
     items: [
-      { icon: <Layers className="h-4 w-4" />, label: "Topology", href: "/(authenticated)/network/topology" },
-      { icon: <Activity className="h-4 w-4" />, label: "Devices", href: "/(authenticated)/network/devices" },
-      { icon: <Wifi className="h-4 w-4" />, label: "Links", href: "/(authenticated)/network/links" },
-      { icon: <AlertCircle className="h-4 w-4" />, label: "Hosts", href: "/(authenticated)/network/hosts" },
+      { icon: <Layers className="h-4 w-4" />, label: "Topology", href: "/topology" },
+      { icon: <Activity className="h-4 w-4" />, label: "Devices", href: "/devices" },
+      { icon: <AlertCircle className="h-4 w-4" />, label: "Alerts", href: "/alerts" },
     ],
   },
   {
     icon: <Wifi className="h-5 w-5" />,
     label: "Services",
     items: [
-      { icon: <Layers className="h-4 w-4" />, label: "Intents", href: "/(authenticated)/services/intents" },
-      { icon: <Activity className="h-4 w-4" />, label: "Flows", href: "/(authenticated)/services/flows" },
-      { icon: <Network className="h-4 w-4" />, label: "VPLS", href: "/(authenticated)/services/vpls" },
-      { icon: <Wifi className="h-4 w-4" />, label: "Optical", href: "/(authenticated)/services/optical" },
+      { icon: <Activity className="h-4 w-4" />, label: "Flows", href: "/flows" },
+      { icon: <Network className="h-4 w-4" />, label: "VPLS", href: "/services" },
     ],
   },
   {
     icon: <Cog className="h-5 w-5" />,
     label: "Configuration",
-    href: "/(authenticated)/configuration",
-  },
-  {
-    icon: <BarChart3 className="h-5 w-5" />,
-    label: "Monitoring",
-    items: [
-      { icon: <Activity className="h-4 w-4" />, label: "Cluster Status", href: "/(authenticated)/monitoring/cluster" },
-      { icon: <BarChart3 className="h-4 w-4" />, label: "Metrics", href: "/(authenticated)/monitoring/metrics" },
-      { icon: <Activity className="h-4 w-4" />, label: "Statistics", href: "/(authenticated)/monitoring/statistics" },
-    ],
-  },
-  {
-    icon: <AlertCircle className="h-5 w-5" />,
-    label: "Alerts",
-    href: "/(authenticated)/alerts",
+    href: "/configuration",
   },
 ]
 
 const adminItems: NavItem[] = [
   {
-    icon: <Cog className="h-5 w-5" />,
-    label: "Administration",
-    items: [
-      { icon: <Activity className="h-4 w-4" />, label: "Users", href: "/(authenticated)/admin/users" },
-      { icon: <Cog className="h-4 w-4" />, label: "Roles", href: "/(authenticated)/admin/roles" },
-      { icon: <AlertCircle className="h-4 w-4" />, label: "Audit Logs", href: "/(authenticated)/admin/audit" },
-    ],
+    icon: <ShieldCheck className="h-5 w-5" />,
+    label: "Users",
+    href: "/admin/users",
   },
 ]
+
+function isRouteActive(pathname: string, href: string) {
+  return pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`))
+}
 
 function NavItemComponent({ item, depth = 0 }: { item: NavItem; depth?: number }) {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
 
-  const isActive = item.href ? pathname === item.href : false
+  const isActive = item.href ? isRouteActive(pathname, item.href) : false
   const hasChildren = item.items && item.items.length > 0
-  const isExpandable = !item.href && hasChildren
 
   useEffect(() => {
     if (hasChildren) {
-      const isChildActive = item.items?.some((child) => child.href && pathname.startsWith(child.href))
+      const isChildActive = item.items?.some((child) => child.href && isRouteActive(pathname, child.href))
       setIsOpen(isChildActive || false)
     }
   }, [pathname, hasChildren, item.items])
@@ -150,6 +134,12 @@ function NavItemComponent({ item, depth = 0 }: { item: NavItem; depth?: number }
 
 export function AppSidebar() {
   const [isOpen, setIsOpen] = useState(false)
+  const pathname = usePathname()
+  const { user } = useAuth()
+
+  useEffect(() => {
+    setIsOpen(false)
+  }, [pathname])
 
   return (
     <>
@@ -175,28 +165,18 @@ export function AppSidebar() {
             <NavItemComponent key={index} item={item} />
           ))}
 
-          {/* Admin Section */}
-          <div className="border-t border-sidebar-border pt-4 mt-4">
-            <p className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Administration
-            </p>
-            <div className="mt-3 space-y-1">
-              {adminItems.map((item, index) => (
-                <NavItemComponent key={index} item={item} />
-              ))}
+          {user?.role === "admin" && (
+            <div className="mt-4 border-t border-sidebar-border pt-4">
+              <p className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Administration
+              </p>
+              <div className="mt-3 space-y-1">
+                {adminItems.map((item, index) => (
+                  <NavItemComponent key={index} item={item} />
+                ))}
+              </div>
             </div>
-          </div>
-
-          {/* Settings Section */}
-          <div className="border-t border-sidebar-border pt-4 mt-4">
-            <Link
-              href="/(authenticated)/settings"
-              className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-sidebar-foreground hover:bg-sidebar/80 hover:text-primary"
-            >
-              <Cog className="h-5 w-5" />
-              <span>Settings</span>
-            </Link>
-          </div>
+          )}
         </nav>
       </aside>
 
