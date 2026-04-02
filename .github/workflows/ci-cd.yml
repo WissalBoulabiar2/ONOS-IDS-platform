@@ -97,12 +97,12 @@ jobs:
           DB_NAME: sdn_platform_test
           DB_USER: test
           DB_PASSWORD: test
-        run: npm run test:backend
+        run: npm run test:backend -- --runInBand
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
-          files: ./PlatformSDN/coverage/backend/coverage-final.json
+          files: ./PlatformSDN/coverage/coverage-final.json
           flags: backend
           name: backend-coverage
         continue-on-error: true
@@ -129,7 +129,7 @@ jobs:
 
       - name: Run frontend tests
         working-directory: PlatformSDN
-        run: npm run test:frontend
+        run: npm run test:frontend -- --runInBand
 
       - name: Build frontend
         working-directory: PlatformSDN
@@ -138,7 +138,7 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
-          files: ./PlatformSDN/coverage/frontend/coverage-final.json
+          files: ./PlatformSDN/coverage/coverage-final.json
           flags: frontend
           name: frontend-coverage
         continue-on-error: true
@@ -254,7 +254,7 @@ jobs:
       - name: Build and push frontend
         uses: docker/build-push-action@v4
         with:
-          context: ./PlatformSDN/app
+          context: ./PlatformSDN
           file: ./PlatformSDN/app/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -294,6 +294,8 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     needs: [build-backend, build-frontend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
 
     environment:
       name: production

@@ -68,6 +68,13 @@ Regle de travail:
 - correction backend utile:
   - valeur par defaut du rate limiter corrigee
   - timers backend (`cache`, cleanup rate limiter) passes en `unref()` pour ne plus bloquer la fin des tests
+  - endpoints ONOS avances du backend monolithique corriges pour utiliser `ONOS_API` et les bonnes credentials
+- correction DevOps / CI-CD:
+  - workflow GitHub Actions aligne sur la vraie structure `PlatformSDN/`
+  - contexte Docker frontend corrige
+  - Dockerfile backend aligne sur `backend/server.js` et `init-db.sql`
+  - Dockerfile frontend corrige pour `next.config.mjs`
+  - chemins Codecov corriges
 
 ### Mise a jour du 1 avril 2026
 

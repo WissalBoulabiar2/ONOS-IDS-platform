@@ -3080,8 +3080,8 @@ app.get('/api/metrics/port-history/:deviceId/:port', async (req, res) => {
 // ============================================
 app.get('/api/cluster/health', async (_req, res) => {
   try {
-    const clusterInfo = await axios.get(`${ONOS_URL}/cluster`, {
-      auth: { username: ONOS_USER, password: ONOS_PASSWORD },
+    const clusterInfo = await axios.get(`${ONOS_API}/cluster`, {
+      auth: { username: ONOS_CONFIG.user, password: ONOS_CONFIG.password },
     });
 
     const nodes = clusterInfo.data.nodes || [];
@@ -3116,8 +3116,8 @@ app.get('/api/cluster/health', async (_req, res) => {
 // ============================================
 app.get('/api/onos/applications', async (_req, res) => {
   try {
-    const appsInfo = await axios.get(`${ONOS_URL}/applications`, {
-      auth: { username: ONOS_USER, password: ONOS_PASSWORD },
+    const appsInfo = await axios.get(`${ONOS_API}/applications`, {
+      auth: { username: ONOS_CONFIG.user, password: ONOS_CONFIG.password },
     });
 
     const apps = appsInfo.data.applications || [];
@@ -3152,8 +3152,8 @@ app.get('/api/onos/applications', async (_req, res) => {
 // ============================================
 app.get('/api/onos/intents', async (_req, res) => {
   try {
-    const intentsInfo = await axios.get(`${ONOS_URL}/intents`, {
-      auth: { username: ONOS_USER, password: ONOS_PASSWORD },
+    const intentsInfo = await axios.get(`${ONOS_API}/intents`, {
+      auth: { username: ONOS_CONFIG.user, password: ONOS_CONFIG.password },
     });
 
     const intents = intentsInfo.data.intents || [];
@@ -3189,8 +3189,8 @@ app.get('/api/onos/intents', async (_req, res) => {
 // ============================================
 app.get('/api/network/performance', async (_req, res) => {
   try {
-    const statsInfo = await axios.get(`${ONOS_URL}/statistics/ports`, {
-      auth: { username: ONOS_USER, password: ONOS_PASSWORD },
+    const statsInfo = await axios.get(`${ONOS_API}/statistics/ports`, {
+      auth: { username: ONOS_CONFIG.user, password: ONOS_CONFIG.password },
     });
 
     const statsList = statsInfo.data.statistics || [];
@@ -3246,8 +3246,8 @@ app.get('/api/network/performance', async (_req, res) => {
 // ============================================
 app.get('/api/network/heatmap', async (_req, res) => {
   try {
-    const statsInfo = await axios.get(`${ONOS_URL}/statistics/ports`, {
-      auth: { username: ONOS_USER, password: ONOS_PASSWORD },
+    const statsInfo = await axios.get(`${ONOS_API}/statistics/ports`, {
+      auth: { username: ONOS_CONFIG.user, password: ONOS_CONFIG.password },
     });
 
     const statsList = statsInfo.data.statistics || [];

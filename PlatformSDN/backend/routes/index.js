@@ -1,6 +1,6 @@
 // PlatformSDN/backend/routes/index.js - Clean route setup
 const express = require('express');
-const authMiddleware = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const authController = require('../controllers/auth-controller');
 const onosController = require('../controllers/onos-controller');
 const usersController = require('../controllers/users-controller');

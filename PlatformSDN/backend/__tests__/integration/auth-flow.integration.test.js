@@ -69,6 +69,13 @@ describe('Route Wiring Integration', () => {
     expect(mockVerifyToken).not.toHaveBeenCalled();
   });
 
+  it('allows public registration without authentication', async () => {
+    const response = await request(app).post('/api/auth/register').send({}).expect(201);
+
+    expect(response.body.route).toBe('register');
+    expect(mockVerifyToken).not.toHaveBeenCalled();
+  });
+
   it('rejects protected routes without a bearer token', async () => {
     const response = await request(app).get('/api/auth/me').expect(401);
 
@@ -105,5 +112,29 @@ describe('Route Wiring Integration', () => {
       .expect(200);
 
     expect(response.body.devices).toEqual([]);
+  });
+
+  it('allows authenticated logout and protected metrics routes', async () => {
+    const logoutResponse = await request(app)
+      .post('/api/auth/logout')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200);
+
+    const metricsResponse = await request(app)
+      .get('/api/metrics')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200);
+
+    expect(logoutResponse.body.message).toBe('Logged out successfully');
+    expect(metricsResponse.body.metrics).toBe(true);
+  });
+
+  it('allows authenticated user-management routes through the shared router', async () => {
+    const response = await request(app)
+      .get('/api/users')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200);
+
+    expect(response.body).toEqual([]);
   });
 });

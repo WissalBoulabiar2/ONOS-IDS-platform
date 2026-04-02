@@ -97,8 +97,8 @@ services:
   # Frontend UI
   frontend:
     build:
-      context: ./PlatformSDN/app
-      dockerfile: Dockerfile
+      context: ./PlatformSDN
+      dockerfile: app/Dockerfile
     container_name: sdn-frontend
     restart: unless-stopped
     environment:

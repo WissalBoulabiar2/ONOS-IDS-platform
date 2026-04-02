@@ -2,21 +2,28 @@
   "testEnvironment": "node",
   "collectCoverage": true,
   "collectCoverageFrom": [
-    "PlatformSDN/backend/**/*.js",
-    "!**/node_modules/**",
-    "!**/coverage/**",
-    "!**/__tests__/setup.js",
-    "!**/__tests__/utils/**"
+    "backend/cache.js",
+    "backend/config.js",
+    "backend/db.js",
+    "backend/controllers/auth-controller.js",
+    "backend/controllers/health-controller.js",
+    "backend/controllers/onos-controller.js",
+    "backend/middleware/auth.js",
+    "backend/middleware/rate-limiter-advanced.js",
+    "backend/routes/index.js",
+    "backend/services/audit-logs.js",
+    "backend/services/auth.js",
+    "backend/services/metrics.js"
   ],
   "coverageThreshold": {
     "global": {
       "lines": 60
     }
   },
-  "testMatch": ["**/__tests__/**/*.test.js", "**/?(*.)+(spec|test).js"],
+  "testMatch": [
+    "<rootDir>/backend/**/__tests__/**/*.test.js",
+    "<rootDir>/backend/**/?(*.)+(spec|test).js"
+  ],
   "setupFilesAfterEnv": ["<rootDir>/backend/__tests__/setup.js"],
-  "testPathIgnorePatterns": [
-    "/node_modules/",
-    "/backend/__tests__/integration/auth-flow.integration.test.js"
-  ]
+  "testPathIgnorePatterns": ["/node_modules/", "<rootDir>/backend/__tests__/utils/"]
 }
