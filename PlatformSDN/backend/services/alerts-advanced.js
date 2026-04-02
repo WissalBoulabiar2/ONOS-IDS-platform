@@ -23,14 +23,7 @@ class AlertService {
   // Create alert
   async createAlert(alertData) {
     try {
-      const {
-        title,
-        description,
-        severity,
-        source,
-        deviceId,
-        metadata = {},
-      } = alertData;
+      const { title, description, severity, source, deviceId, metadata = {} } = alertData;
 
       const result = await db.query(
         `INSERT INTO alerts (title, description, severity, source, device_id, state, metadata, created_at)

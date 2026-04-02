@@ -16,7 +16,7 @@ class AdvancedRateLimiter {
   middleware() {
     return (req, res, next) => {
       const key = this.getKey(req);
-      const limit = this.getLimit(req.path);
+      const limit = this.getLimit(req.path || req.originalUrl || '/');
 
       const current = this.limits.get(key) || { count: 0, resetTime: Date.now() + limit.windowMs };
 
@@ -53,22 +53,31 @@ class AdvancedRateLimiter {
     // Use combination of IP and user ID if authenticated
     const ip = req.ip || req.connection.remoteAddress;
     const userId = req.user?.id || 'anonymous';
-    return `${ip}:${userId}:${req.path}`;
+    const path = req.path || req.originalUrl || '/';
+    return `${ip}:${userId}:${path}`;
   }
 
   getLimit(path) {
+    const safePath = typeof path === 'string' ? path : '';
+
     for (const rule of this.rules) {
-      if (rule.endpoint && path.includes(rule.endpoint)) {
+      if (rule.endpoint && safePath.includes(rule.endpoint)) {
         return { maxRequests: rule.maxRequests, windowMs: rule.windowMs };
       }
     }
 
-    return { maxRequests: this.rules.default, windowMs: this.rules.windowMs };
+    const defaultRule = this.rules.find((rule) =>
+      Object.prototype.hasOwnProperty.call(rule, 'default')
+    );
+    return {
+      maxRequests: defaultRule?.default ?? 1000,
+      windowMs: defaultRule?.windowMs ?? 60 * 1000,
+    };
   }
 
   logRateLimitViolation(req, currentCount, limit) {
     console.warn(
-      `[RateLimit] Violation: ${req.method} ${req.path} from ${req.ip} (${currentCount}/${limit})`
+      `[RateLimit] Violation: ${req.method || 'GET'} ${req.path || req.originalUrl || '/'} from ${req.ip} (${currentCount}/${limit})`
     );
   }
 
@@ -86,6 +95,7 @@ class AdvancedRateLimiter {
 
 // Run cleanup every 5 minutes
 const limiter = new AdvancedRateLimiter();
-setInterval(() => limiter.cleanup(), 5 * 60 * 1000);
+const cleanupInterval = setInterval(() => limiter.cleanup(), 5 * 60 * 1000);
+cleanupInterval.unref?.();
 
 module.exports = limiter;

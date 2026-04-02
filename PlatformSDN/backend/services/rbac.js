@@ -61,14 +61,14 @@ class RBACService {
    * Check if user has any of the permissions
    */
   static hasAnyPermission(userRole, permissions) {
-    return permissions.some(perm => this.hasPermission(userRole, perm));
+    return permissions.some((perm) => this.hasPermission(userRole, perm));
   }
 
   /**
    * Check if user has all permissions
    */
   static hasAllPermissions(userRole, permissions) {
-    return permissions.every(perm => this.hasPermission(userRole, perm));
+    return permissions.every((perm) => this.hasPermission(userRole, perm));
   }
 
   /**

@@ -1,16 +1,16 @@
-"use client"
+'use client';
 
-import type React from "react"
+import type React from 'react';
 
-import { useState } from "react"
-import Link from "next/link"
-import Navigation from "@/components/navigation"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { useState } from 'react';
+import Link from 'next/link';
+import Navigation from '@/components/navigation';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowRight,
   CheckCircle2,
@@ -19,26 +19,26 @@ import {
   MessageSquare,
   Server,
   ShieldCheck,
-} from "lucide-react"
+} from 'lucide-react';
 
 export default function ContactPage() {
-  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
-    controller: "",
-    subject: "",
-    message: "",
-  })
+    fullName: '',
+    email: '',
+    controller: '',
+    subject: '',
+    message: '',
+  });
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setIsSubmitted(true)
-  }
+    event.preventDefault();
+    setIsSubmitted(true);
+  };
 
   return (
     <div className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-white">
@@ -60,16 +60,19 @@ export default function ContactPage() {
                 Contact And Operations Support
               </h1>
               <p className="max-w-2xl text-sm text-slate-300 sm:text-base">
-                Use this page to contact the platform team about ONOS connectivity, topology issues, flow
-                provisioning, account access, or frontend anomalies.
+                Use this page to contact the platform team about ONOS connectivity, topology issues,
+                flow provisioning, account access, or frontend anomalies.
               </p>
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur lg:min-w-[280px]">
               <p className="text-xs uppercase tracking-[0.25em] text-cyan-200">Support scope</p>
-              <p className="mt-2 text-lg font-semibold">Frontend, backend, ONOS, and operator access</p>
+              <p className="mt-2 text-lg font-semibold">
+                Frontend, backend, ONOS, and operator access
+              </p>
               <p className="mt-2 text-sm text-slate-300">
-                This form is currently mock-only and ready for backend integration in a future sprint.
+                This form is currently mock-only and ready for backend integration in a future
+                sprint.
               </p>
             </div>
           </div>
@@ -87,8 +90,8 @@ export default function ContactPage() {
                     <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-emerald-500" />
                     <h2 className="text-2xl font-bold">Request Registered</h2>
                     <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-                      Your support request has been recorded in the mock workflow. Later, this action will
-                      create a backend ticket and notify operators in real time.
+                      Your support request has been recorded in the mock workflow. Later, this
+                      action will create a backend ticket and notify operators in real time.
                     </p>
                     <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
                       <Button asChild className="bg-cyan-600 text-white hover:bg-cyan-700">
@@ -114,7 +117,7 @@ export default function ContactPage() {
                         <Input
                           id="fullName"
                           value={formData.fullName}
-                          onChange={(event) => handleInputChange("fullName", event.target.value)}
+                          onChange={(event) => handleInputChange('fullName', event.target.value)}
                           placeholder="Network operator"
                         />
                       </div>
@@ -124,7 +127,7 @@ export default function ContactPage() {
                           id="email"
                           type="email"
                           value={formData.email}
-                          onChange={(event) => handleInputChange("email", event.target.value)}
+                          onChange={(event) => handleInputChange('email', event.target.value)}
                           placeholder="operator@platformsdn.local"
                         />
                       </div>
@@ -136,7 +139,7 @@ export default function ContactPage() {
                         <Input
                           id="controller"
                           value={formData.controller}
-                          onChange={(event) => handleInputChange("controller", event.target.value)}
+                          onChange={(event) => handleInputChange('controller', event.target.value)}
                           placeholder="onos-cluster-1 or of:0000000000000001"
                         />
                       </div>
@@ -145,7 +148,7 @@ export default function ContactPage() {
                         <Input
                           id="subject"
                           value={formData.subject}
-                          onChange={(event) => handleInputChange("subject", event.target.value)}
+                          onChange={(event) => handleInputChange('subject', event.target.value)}
                           placeholder="Topology mismatch or flow deployment issue"
                         />
                       </div>
@@ -156,7 +159,7 @@ export default function ContactPage() {
                       <Textarea
                         id="message"
                         value={formData.message}
-                        onChange={(event) => handleInputChange("message", event.target.value)}
+                        onChange={(event) => handleInputChange('message', event.target.value)}
                         placeholder="Describe the issue, expected behavior, and any related flow rule or device identifier."
                         className="min-h-36"
                       />
@@ -201,7 +204,10 @@ export default function ContactPage() {
                   <ShieldCheck className="mt-0.5 h-4 w-4 text-violet-500" />
                   <div>
                     <p className="font-medium text-gray-900 dark:text-white">Account Support</p>
-                    <p>Password recovery and operator access flows will be linked to the auth backend later.</p>
+                    <p>
+                      Password recovery and operator access flows will be linked to the auth backend
+                      later.
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -226,5 +232,5 @@ export default function ContactPage() {
         </section>
       </main>
     </div>
-  )
+  );
 }

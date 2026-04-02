@@ -1,61 +1,64 @@
-"use client"
+'use client';
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
-import { LogOut, Menu, Server, ShieldCheck, Wifi, X } from "lucide-react"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { Button } from "@/components/ui/button"
-import { useAuth } from "@/components/auth-provider"
-import { cn } from "@/lib/utils"
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { LogOut, Menu, Server, ShieldCheck, Wifi, X } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/components/auth-provider';
+import { cn } from '@/lib/utils';
 
 const baseNavItems = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/devices", label: "Devices" },
-  { href: "/topology", label: "Topology" },
-  { href: "/flows", label: "Flows" },
-  { href: "/alerts", label: "Alerts" },
-  { href: "/services", label: "Services" },
-  { href: "/configuration", label: "Configuration" },
-]
+  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/devices', label: 'Devices' },
+  { href: '/topology', label: 'Topology' },
+  { href: '/flows', label: 'Flows' },
+  { href: '/alerts', label: 'Alerts' },
+  { href: '/services', label: 'Services' },
+  { href: '/configuration', label: 'Configuration' },
+];
 
 function isRouteActive(pathname: string, href: string) {
-  return pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`))
+  return pathname === href || (href !== '/dashboard' && pathname.startsWith(`${href}/`));
 }
 
 export default function Navigation() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const pathname = usePathname()
-  const { user, isAuthenticated, isLoading, logout } = useAuth()
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
 
   const navItems = useMemo(
     () =>
-      user?.role === "admin"
-        ? [...baseNavItems, { href: "/admin/users", label: "Users" }]
+      user?.role === 'admin'
+        ? [...baseNavItems, { href: '/admin/users', label: 'Users' }]
         : baseNavItems,
     [user?.role]
-  )
+  );
 
-  const activeItem = navItems.find((item) => isRouteActive(pathname, item.href))
+  const activeItem = navItems.find((item) => isRouteActive(pathname, item.href));
 
   useEffect(() => {
-    setIsMenuOpen(false)
-  }, [pathname])
+    setIsMenuOpen(false);
+  }, [pathname]);
 
   const getNavClassName = (href: string) =>
     cn(
-      "shrink-0 rounded-full px-3 py-2 text-sm font-medium transition-colors",
+      'shrink-0 rounded-full px-3 py-2 text-sm font-medium transition-colors',
       isRouteActive(pathname, href)
-        ? "bg-cyan-500/10 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300"
-        : "text-gray-700 hover:bg-slate-100 hover:text-cyan-700 dark:text-gray-300 dark:hover:bg-slate-900 dark:hover:text-cyan-300"
-    )
+        ? 'bg-cyan-500/10 text-cyan-700 dark:bg-cyan-500/15 dark:text-cyan-300'
+        : 'text-gray-700 hover:bg-slate-100 hover:text-cyan-700 dark:text-gray-300 dark:hover:bg-slate-900 dark:hover:text-cyan-300'
+    );
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex min-h-16 items-center gap-3 py-3">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <Link href={isAuthenticated ? "/dashboard" : "/login"} className="flex shrink-0 items-center gap-2">
+            <Link
+              href={isAuthenticated ? '/dashboard' : '/login'}
+              className="flex shrink-0 items-center gap-2"
+            >
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-500 dark:bg-cyan-500/15 dark:text-cyan-300">
                 <Wifi className="h-5 w-5" />
               </div>
@@ -75,7 +78,9 @@ export default function Navigation() {
                 <span>ONOS Controller</span>
               </div>
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
-              <span className="truncate">{isAuthenticated ? "Secured Session" : "Login Required"}</span>
+              <span className="truncate">
+                {isAuthenticated ? 'Secured Session' : 'Login Required'}
+              </span>
             </div>
           </div>
 
@@ -93,7 +98,7 @@ export default function Navigation() {
 
           <div className="flex shrink-0 items-center justify-end gap-2">
             <div className="hidden rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 sm:block dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300">
-              {isAuthenticated ? "Authenticated" : "Public"}
+              {isAuthenticated ? 'Authenticated' : 'Public'}
             </div>
 
             {activeItem && (
@@ -110,12 +115,18 @@ export default function Navigation() {
               ) : isAuthenticated && user ? (
                 <>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-right dark:border-slate-800 dark:bg-slate-900">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{user.fullName}</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                      {user.fullName}
+                    </p>
                     <p className="text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                       {user.role}
                     </p>
                   </div>
-                  <Button className="bg-cyan-600 text-white hover:bg-cyan-700" size="sm" onClick={logout}>
+                  <Button
+                    className="bg-cyan-600 text-white hover:bg-cyan-700"
+                    size="sm"
+                    onClick={logout}
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
                   </Button>
@@ -137,7 +148,7 @@ export default function Navigation() {
               type="button"
               onClick={() => setIsMenuOpen((value) => !value)}
               className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-700 transition-colors hover:text-cyan-600 xl:hidden dark:border-slate-800 dark:text-slate-300 dark:hover:text-cyan-300"
-              aria-label={isMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+              aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
             >
               {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -163,13 +174,17 @@ export default function Navigation() {
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900">
               {isAuthenticated && user ? (
                 <>
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{user.fullName}</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                    {user.fullName}
+                  </p>
                   <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                     {user.role}
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-slate-600 dark:text-slate-400">Authentication required</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Authentication required
+                </p>
               )}
             </div>
 
@@ -180,10 +195,10 @@ export default function Navigation() {
                     key={item.href}
                     href={item.href}
                     className={cn(
-                      "rounded-2xl border px-4 py-3 text-sm font-medium transition-colors",
+                      'rounded-2xl border px-4 py-3 text-sm font-medium transition-colors',
                       isRouteActive(pathname, item.href)
-                        ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300"
-                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+                        ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-700 dark:text-cyan-300'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900'
                     )}
                   >
                     {item.label}
@@ -194,7 +209,10 @@ export default function Navigation() {
 
             <div className="border-t border-slate-200 pt-3 dark:border-slate-800">
               {isAuthenticated ? (
-                <Button className="w-full bg-cyan-600 text-white hover:bg-cyan-700" onClick={logout}>
+                <Button
+                  className="w-full bg-cyan-600 text-white hover:bg-cyan-700"
+                  onClick={logout}
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   Logout
                 </Button>
@@ -214,5 +232,5 @@ export default function Navigation() {
         </div>
       )}
     </nav>
-  )
+  );
 }

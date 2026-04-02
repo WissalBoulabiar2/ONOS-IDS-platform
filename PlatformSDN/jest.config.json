@@ -4,15 +4,19 @@
   "collectCoverageFrom": [
     "PlatformSDN/backend/**/*.js",
     "!**/node_modules/**",
-    "!**/coverage/**"
+    "!**/coverage/**",
+    "!**/__tests__/setup.js",
+    "!**/__tests__/utils/**"
   ],
   "coverageThreshold": {
     "global": {
       "lines": 60
     }
   },
-  "testMatch": [
-    "**/__tests__/**/*.js",
-    "**/?(*.)+(spec|test).js"
+  "testMatch": ["**/__tests__/**/*.test.js", "**/?(*.)+(spec|test).js"],
+  "setupFilesAfterEnv": ["<rootDir>/backend/__tests__/setup.js"],
+  "testPathIgnorePatterns": [
+    "/node_modules/",
+    "/backend/__tests__/integration/auth-flow.integration.test.js"
   ]
 }

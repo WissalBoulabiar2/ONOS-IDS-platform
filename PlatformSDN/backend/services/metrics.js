@@ -158,7 +158,7 @@ class MetricsService {
            cache_metrics->>'hitRatio' as cache_hit_ratio
          FROM metrics_snapshots
          WHERE created_at > NOW() - INTERVAL '${hours} hours'
-         ORDER BY created_at ASC`,
+         ORDER BY created_at ASC`
       );
 
       return result.rows;

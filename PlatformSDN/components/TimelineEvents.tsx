@@ -1,60 +1,60 @@
-"use client"
+'use client';
 
-import React from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle, CheckCircle, Info, AlertTriangle, Clock } from "lucide-react"
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertCircle, CheckCircle, Info, AlertTriangle, Clock } from 'lucide-react';
 
 export interface TimelineEvent {
-  id: string
-  title: string
-  description: string
-  timestamp: Date
-  type: "error" | "success" | "info" | "warning"
-  device?: string
+  id: string;
+  title: string;
+  description: string;
+  timestamp: Date;
+  type: 'error' | 'success' | 'info' | 'warning';
+  device?: string;
 }
 
 interface TimelineEventsProps {
-  events: TimelineEvent[]
-  title?: string
-  limit?: number
+  events: TimelineEvent[];
+  title?: string;
+  limit?: number;
 }
 
 export function TimelineEvents({
   events,
-  title = "Recent Events",
+  title = 'Recent Events',
   limit = 5,
 }: TimelineEventsProps) {
   const getIcon = (type: string) => {
     switch (type) {
-      case "error":
-        return <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-      case "success":
-        return <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-      case "warning":
-        return <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-      case "info":
+      case 'error':
+        return <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />;
+      case 'success':
+        return <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />;
+      case 'warning':
+        return <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />;
+      case 'info':
       default:
-        return <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+        return <Info className="h-5 w-5 text-blue-600 dark:text-blue-400" />;
     }
-  }
+  };
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case "error":
-        return "bg-red-50 dark:bg-red-950 border-l-4 border-red-600 dark:border-red-400"
-      case "success":
-        return "bg-emerald-50 dark:bg-emerald-950 border-l-4 border-emerald-600 dark:border-emerald-400"
-      case "warning":
-        return "bg-amber-50 dark:bg-amber-950 border-l-4 border-amber-600 dark:border-amber-400"
-      case "info":
+      case 'error':
+        return 'bg-red-50 dark:bg-red-950 border-l-4 border-red-600 dark:border-red-400';
+      case 'success':
+        return 'bg-emerald-50 dark:bg-emerald-950 border-l-4 border-emerald-600 dark:border-emerald-400';
+      case 'warning':
+        return 'bg-amber-50 dark:bg-amber-950 border-l-4 border-amber-600 dark:border-amber-400';
+      case 'info':
       default:
-        return "bg-blue-50 dark:bg-blue-950 border-l-4 border-blue-600 dark:border-blue-400"
+        return 'bg-blue-50 dark:bg-blue-950 border-l-4 border-blue-600 dark:border-blue-400';
     }
-  }
+  };
 
   const sortedEvents = [...events]
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, limit)
+    .slice(0, limit);
 
   return (
     <Card>
@@ -72,9 +72,7 @@ export function TimelineEvents({
             sortedEvents.map((event) => (
               <div key={event.id} className={`p-4 rounded-lg ${getTypeColor(event.type)}`}>
                 <div className="flex gap-3">
-                  <div className="flex-shrink-0 pt-1">
-                    {getIcon(event.type)}
-                  </div>
+                  <div className="flex-shrink-0 pt-1">{getIcon(event.type)}</div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
@@ -105,13 +103,13 @@ export function TimelineEvents({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }
 
 function formatEventTimestamp(date: Date): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "UTC",
-  }).format(new Date(date))
+  return new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(date));
 }

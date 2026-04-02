@@ -7,11 +7,11 @@ const securityHeaders = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "cdn.jsdelivr.net"],
-      styleSrc: ["'self'", "'unsafe-inline'", "fonts.googleapis.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      fontSrc: ["'self'", "fonts.gstatic.com"],
-      connectSrc: ["'self'", "localhost:5000"],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'cdn.jsdelivr.net'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'fonts.googleapis.com'],
+      imgSrc: ["'self'", 'data:', 'https:'],
+      fontSrc: ["'self'", 'fonts.gstatic.com'],
+      connectSrc: ["'self'", 'localhost:5000'],
       frameSrc: ["'none'"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: [],
@@ -80,10 +80,13 @@ function sanitizeInput(data) {
   }
 
   if (typeof data === 'object' && data !== null) {
-    return Object.keys(data).reduce((acc, key) => {
-      acc[key] = sanitizeInput(data[key]);
-      return acc;
-    }, Array.isArray(data) ? [] : {});
+    return Object.keys(data).reduce(
+      (acc, key) => {
+        acc[key] = sanitizeInput(data[key]);
+        return acc;
+      },
+      Array.isArray(data) ? [] : {}
+    );
   }
 
   return data;

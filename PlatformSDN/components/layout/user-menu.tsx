@@ -1,7 +1,7 @@
-"use client"
+'use client';
 
-import { useAuth } from "@/components/auth-provider"
-import { Button } from "@/components/ui/button"
+import { useAuth } from '@/components/auth-provider';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,13 +10,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { LogOut, Settings, User, Shield } from "lucide-react"
-import Link from "next/link"
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { LogOut, Settings, User, Shield } from 'lucide-react';
+import Link from 'next/link';
 
 export function UserMenu() {
-  const { user, logout, isAuthenticated } = useAuth()
+  const { user, logout, isAuthenticated } = useAuth();
 
   if (!isAuthenticated || !user) {
     return (
@@ -25,14 +25,15 @@ export function UserMenu() {
           Login
         </Button>
       </Link>
-    )
+    );
   }
 
-  const initials = user.fullName
-    ?.split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase() || "?"
+  const initials =
+    user.fullName
+      ?.split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase() || '?';
 
   return (
     <DropdownMenu>
@@ -71,7 +72,7 @@ export function UserMenu() {
             </Link>
           </DropdownMenuItem>
 
-          {user.role === "admin" && (
+          {user.role === 'admin' && (
             <DropdownMenuItem asChild>
               <Link href="/admin/users" className="cursor-pointer">
                 <Shield className="mr-2 h-4 w-4" />
@@ -84,15 +85,12 @@ export function UserMenu() {
         <DropdownMenuSeparator />
 
         <DropdownMenuGroup>
-          <DropdownMenuItem
-            onClick={() => logout()}
-            className="cursor-pointer text-critical"
-          >
+          <DropdownMenuItem onClick={() => logout()} className="cursor-pointer text-critical">
             <LogOut className="mr-2 h-4 w-4" />
             <span>Log out</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }

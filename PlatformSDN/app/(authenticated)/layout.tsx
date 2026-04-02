@@ -1,25 +1,21 @@
-"use client"
+'use client';
 
-import type React from "react"
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/components/auth-provider"
-import { AppHeader } from "@/components/layout/app-header"
-import { AppSidebar } from "@/components/layout/app-sidebar"
+import type React from 'react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/auth-provider';
+import { AppHeader } from '@/components/layout/app-header';
+import { AppSidebar } from '@/components/layout/app-sidebar';
 
-export default function AuthenticatedLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const { isAuthenticated, isLoading } = useAuth()
-  const router = useRouter()
+export default function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/login")
+      router.push('/login');
     }
-  }, [isAuthenticated, isLoading, router])
+  }, [isAuthenticated, isLoading, router]);
 
   if (isLoading) {
     return (
@@ -29,11 +25,11 @@ export default function AuthenticatedLayout({
           <p className="text-muted-foreground">Loading session...</p>
         </div>
       </div>
-    )
+    );
   }
 
   if (!isAuthenticated) {
-    return null
+    return null;
   }
 
   return (
@@ -42,11 +38,9 @@ export default function AuthenticatedLayout({
       <div className="flex flex-1 overflow-hidden">
         <AppSidebar />
         <main className="w-full flex-1 overflow-y-auto bg-background">
-          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-            {children}
-          </div>
+          <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">{children}</div>
         </main>
       </div>
     </div>
-  )
+  );
 }

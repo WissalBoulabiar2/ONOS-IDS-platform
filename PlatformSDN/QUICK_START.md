@@ -3,6 +3,7 @@
 ## ✅ Vous avez maintenant:
 
 **Frontend** (Next.js 15 + React 19 + Tailwind CSS)
+
 - ✅ Dashboard avec Health Score, KPIs, Quick Actions
 - ✅ Topologie interactive (Cytoscape.js)
 - ✅ Gestion des équipements, flows, alertes
@@ -10,6 +11,7 @@
 - ✅ Inspiré Cisco vManage & DNA Center
 
 **Backend** (Node.js + Express)
+
 - ✅ API REST proxy vers ONOS
 - ✅ Endpoints: /devices, /topology, /flows, /ports
 - ✅ CORS configuré
@@ -58,12 +60,14 @@ npm list express
 ### Option A: Deux terminals (Recommandé)
 
 **Terminal 1 - Frontend** (Port 3007):
+
 ```bash
 cd PlatformSDN
 npm run dev
 ```
 
 **Terminal 2 - Backend** (Port 5000):
+
 ```bash
 cd PlatformSDN
 npm run backend
@@ -109,12 +113,12 @@ curl http://localhost:5000/api/devices
 
 ## 📍 URLs Importantes
 
-| Service | URL | Status |
-|---------|-----|---------|
-| **Frontend** | http://localhost:3007 | ✅ Running |
-| **Backend API** | http://localhost:5000/api | ⏳ Starting |
-| **ONOS Controller** | http://localhost:8181 | ❓ Check ONOS |
-| **API Health** | curl http://localhost:5000/api/health | Test |
+| Service             | URL                                   | Status        |
+| ------------------- | ------------------------------------- | ------------- |
+| **Frontend**        | http://localhost:3007                 | ✅ Running    |
+| **Backend API**     | http://localhost:5000/api             | ⏳ Starting   |
+| **ONOS Controller** | http://localhost:8181                 | ❓ Check ONOS |
+| **API Health**      | curl http://localhost:5000/api/health | Test          |
 
 ---
 

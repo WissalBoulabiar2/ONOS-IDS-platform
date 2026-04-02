@@ -9,10 +9,7 @@ interface UseApiState<T> {
   refetch: () => Promise<void>;
 }
 
-export function useApi<T>(
-  fetchFn: () => Promise<T>,
-  dependencies: any[] = []
-): UseApiState<T> {
+export function useApi<T>(fetchFn: () => Promise<T>, dependencies: any[] = []): UseApiState<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -39,26 +36,17 @@ export function useApi<T>(
 
 // Hook for optimized device fetching
 export function useDevices(forceRefresh: boolean = false) {
-  return useApi(
-    () => apiService.getDevices(forceRefresh),
-    [forceRefresh]
-  );
+  return useApi(() => apiService.getDevices(forceRefresh), [forceRefresh]);
 }
 
 // Hook for optimized links fetching
 export function useLinks(forceRefresh: boolean = false) {
-  return useApi(
-    () => apiService.getLinks(forceRefresh),
-    [forceRefresh]
-  );
+  return useApi(() => apiService.getLinks(forceRefresh), [forceRefresh]);
 }
 
 // Hook for optimized flows fetching
 export function useFlows(forceRefresh: boolean = false) {
-  return useApi(
-    () => apiService.getFlows(forceRefresh),
-    [forceRefresh]
-  );
+  return useApi(() => apiService.getFlows(forceRefresh), [forceRefresh]);
 }
 
 // Hook for user management

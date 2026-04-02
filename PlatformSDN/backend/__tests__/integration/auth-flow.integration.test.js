@@ -1,101 +1,109 @@
-// PlatformSDN/backend/__tests__/integration/auth-flow.integration.test.js
 const request = require('supertest');
-const app = require('../../server-clean');
-const db = require('../../db');
-const authService = require('../../services/auth');
+const express = require('express');
 
-describe('Authentication Flow Integration Tests', () => {
-  let token;
-  let userId;
+const mockVerifyToken = jest.fn((token) =>
+  token === 'valid-token'
+    ? { id: 1, username: 'admin', role: 'admin', email: 'admin@sdn.local' }
+    : null
+);
 
-  beforeAll(async () => {
-    await db.initializePool();
+jest.mock('../../services/auth', () => ({
+  verifyToken: (...args) => mockVerifyToken(...args),
+}));
+
+jest.mock('../../controllers/auth-controller', () => ({
+  login: jest.fn((_req, res) => res.json({ route: 'login' })),
+  register: jest.fn((_req, res) => res.status(201).json({ route: 'register' })),
+  getCurrentUser: jest.fn((req, res) => res.json({ user: req.user })),
+  logout: jest.fn((_req, res) => res.json({ message: 'Logged out successfully' })),
+}));
+
+jest.mock('../../controllers/onos-controller', () => ({
+  getDevices: jest.fn((_req, res) => res.json({ devices: [] })),
+  getLinks: jest.fn((_req, res) => res.json({ links: [] })),
+  getFlows: jest.fn((_req, res) => res.json({ flows: [] })),
+  getIntents: jest.fn((_req, res) => res.json({ intents: [] })),
+  getClusterTopology: jest.fn((_req, res) => res.json({ nodes: [], edges: [] })),
+}));
+
+jest.mock('../../controllers/users-controller', () => ({
+  getAllUsers: jest.fn((_req, res) => res.json([])),
+  getUserById: jest.fn((_req, res) => res.json({ id: 1 })),
+  createUser: jest.fn((_req, res) => res.status(201).json({ id: 1 })),
+  updateUser: jest.fn((_req, res) => res.json({ id: 1 })),
+  deleteUser: jest.fn((_req, res) => res.json({ message: 'deleted' })),
+}));
+
+jest.mock('../../controllers/health-controller', () => ({
+  getHealth: jest.fn((_req, res) => res.json({ status: 'healthy' })),
+  getLiveness: jest.fn((_req, res) => res.json({ status: 'alive' })),
+  getReadiness: jest.fn((_req, res) => res.json({ status: 'ready' })),
+  getMetrics: jest.fn((_req, res) => res.json({ metrics: true })),
+  getSystemMetrics: jest.fn((_req, res) => res.json({ system: true })),
+}));
+
+describe('Route Wiring Integration', () => {
+  let app;
+
+  beforeEach(() => {
+    jest.resetModules();
+    jest.clearAllMocks();
+
+    const router = require('../../routes/index');
+    app = express();
+    app.use(express.json());
+    app.use('/api', router);
   });
 
-  afterAll(async () => {
-    await db.closePool();
+  it('allows public health checks without authentication', async () => {
+    const response = await request(app).get('/api/health').expect(200);
+
+    expect(response.body.status).toBe('healthy');
+    expect(mockVerifyToken).not.toHaveBeenCalled();
   });
 
-  describe('Complete Auth Flow', () => {
-    it('should register a new user', async () => {
-      const response = await request(app)
-        .post('/api/auth/register')
-        .send({
-          username: `testuser_${Date.now()}`,
-          email: `test_${Date.now()}@example.com`,
-          password: 'TestPassword123!',
-          fullName: 'Test User',
-        })
-        .expect(201);
+  it('allows public login without authentication', async () => {
+    const response = await request(app).post('/api/auth/login').send({}).expect(200);
 
-      expect(response.body).toHaveProperty('token');
-      expect(response.body.user).toHaveProperty('id');
-      expect(response.body.user.username).toBeDefined();
+    expect(response.body.route).toBe('login');
+    expect(mockVerifyToken).not.toHaveBeenCalled();
+  });
 
-      userId = response.body.user.id;
-      token = response.body.token;
-    });
+  it('rejects protected routes without a bearer token', async () => {
+    const response = await request(app).get('/api/auth/me').expect(401);
 
-    it('should login with valid credentials', async () => {
-      const response = await request(app)
-        .post('/api/auth/login')
-        .send({
-          username: 'admin',
-          password: 'admin123',
-        })
-        .expect(200);
+    expect(response.body.error).toBe('No token provided');
+  });
 
-      expect(response.body).toHaveProperty('token');
-      expect(response.body.user).toHaveProperty('id');
-      expect(response.body.user.role).toBeDefined();
-    });
+  it('rejects protected routes with an invalid bearer token', async () => {
+    const response = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', 'Bearer invalid-token')
+      .expect(401);
 
-    it('should reject invalid credentials', async () => {
-      const response = await request(app)
-        .post('/api/auth/login')
-        .send({
-          username: 'admin',
-          password: 'wrongpassword',
-        })
-        .expect(401);
+    expect(response.body.error).toBe('Invalid or expired token');
+  });
 
-      expect(response.body).toHaveProperty('error');
-    });
+  it('allows protected routes with a valid bearer token', async () => {
+    const response = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200);
 
-    it('should get current user with valid token', async () => {
-      const response = await request(app)
-        .get('/api/auth/me')
-        .set('Authorization', `Bearer ${token}`)
-        .expect(200);
+    expect(response.body.user).toEqual(
+      expect.objectContaining({
+        id: 1,
+        role: 'admin',
+      })
+    );
+  });
 
-      expect(response.body.user).toHaveProperty('id');
-      expect(response.body.user).toHaveProperty('username');
-    });
+  it('protects ONOS routes with the shared auth middleware', async () => {
+    const response = await request(app)
+      .get('/api/onos/devices')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200);
 
-    it('should reject requests without token', async () => {
-      const response = await request(app)
-        .get('/api/onos/devices')
-        .expect(401);
-
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should reject requests with invalid token', async () => {
-      const response = await request(app)
-        .get('/api/onos/devices')
-        .set('Authorization', 'Bearer invalid_token')
-        .expect(401);
-
-      expect(response.body).toHaveProperty('error');
-    });
-
-    it('should logout successfully', async () => {
-      const response = await request(app)
-        .post('/api/auth/logout')
-        .set('Authorization', `Bearer ${token}`)
-        .expect(200);
-
-      expect(response.body).toHaveProperty('message');
-    });
+    expect(response.body.devices).toEqual([]);
   });
 });

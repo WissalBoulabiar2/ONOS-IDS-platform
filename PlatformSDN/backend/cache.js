@@ -21,6 +21,7 @@ class CacheService {
         this.timeouts.delete(key);
       }, ttlSeconds * 1000);
 
+      timeout.unref?.();
       this.timeouts.set(key, timeout);
     }
 

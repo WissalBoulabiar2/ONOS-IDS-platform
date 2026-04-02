@@ -78,11 +78,7 @@ class APIService {
     return Date.now() - entry.timestamp < entry.ttl * 1000;
   }
 
-  async getWithCache<T>(
-    url: string,
-    ttlSeconds: number = 300,
-    params?: any
-  ): Promise<T> {
+  async getWithCache<T>(url: string, ttlSeconds: number = 300, params?: any): Promise<T> {
     const cacheKey = this.getCacheKey('GET', url, params);
 
     // Check in-memory cache

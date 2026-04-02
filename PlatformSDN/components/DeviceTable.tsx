@@ -1,31 +1,31 @@
-"use client"
+'use client';
 
-import React from "react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Search, ChevronRight, Power } from "lucide-react"
+} from '@/components/ui/select';
+import { Search, ChevronRight, Power } from 'lucide-react';
 
 interface Device {
-  id: string
-  type: string
-  available: boolean
-  manufacturer?: string
-  serialNumber?: string
+  id: string;
+  type: string;
+  available: boolean;
+  manufacturer?: string;
+  serialNumber?: string;
 }
 
 interface DeviceTableProps {
-  devices: Device[]
-  isLoading?: boolean
-  onSelectDevice: (device: Device) => void
-  onActionClick?: (action: string, device: Device) => void
+  devices: Device[];
+  isLoading?: boolean;
+  onSelectDevice: (device: Device) => void;
+  onActionClick?: (action: string, device: Device) => void;
 }
 
 export function DeviceTable({
@@ -34,27 +34,27 @@ export function DeviceTable({
   onSelectDevice,
   onActionClick,
 }: DeviceTableProps) {
-  const [searchTerm, setSearchTerm] = React.useState("")
-  const [statusFilter, setStatusFilter] = React.useState<"all" | "online" | "offline">("all")
-  const [typeFilter, setTypeFilter] = React.useState<string>("all")
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<'all' | 'online' | 'offline'>('all');
+  const [typeFilter, setTypeFilter] = React.useState<string>('all');
 
   // Filter devices
   const filteredDevices = devices.filter((device) => {
     const matchesSearch =
       device.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      device.type.toLowerCase().includes(searchTerm.toLowerCase())
+      device.type.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "online" && device.available) ||
-      (statusFilter === "offline" && !device.available)
+      statusFilter === 'all' ||
+      (statusFilter === 'online' && device.available) ||
+      (statusFilter === 'offline' && !device.available);
 
-    const matchesType = typeFilter === "all" || device.type === typeFilter
+    const matchesType = typeFilter === 'all' || device.type === typeFilter;
 
-    return matchesSearch && matchesStatus && matchesType
-  })
+    return matchesSearch && matchesStatus && matchesType;
+  });
 
-  const types = Array.from(new Set(devices.map((d) => d.type)))
+  const types = Array.from(new Set(devices.map((d) => d.type)));
 
   return (
     <div className="space-y-4">
@@ -160,21 +160,21 @@ export function DeviceTable({
                     <div className="flex items-center gap-2">
                       <div
                         className={`h-3 w-3 rounded-full ${
-                          device.available ? "bg-emerald-500" : "bg-red-500"
+                          device.available ? 'bg-emerald-500' : 'bg-red-500'
                         }`}
                       />
                       <span className="text-sm font-medium">
-                        {device.available ? "Online" : "Offline"}
+                        {device.available ? 'Online' : 'Offline'}
                       </span>
                     </div>
                   </td>
 
                   <td className="px-6 py-4 text-gray-600 dark:text-gray-400">
-                    {device.manufacturer || "-"}
+                    {device.manufacturer || '-'}
                   </td>
 
                   <td className="px-6 py-4 font-mono text-xs text-gray-600 dark:text-gray-400">
-                    {device.serialNumber || "N/A"}
+                    {device.serialNumber || 'N/A'}
                   </td>
 
                   <td className="px-6 py-4">
@@ -193,7 +193,7 @@ export function DeviceTable({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => onActionClick?.("disable", device)}
+                          onClick={() => onActionClick?.('disable', device)}
                           className="text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950"
                         >
                           <Power className="h-4 w-4" />
@@ -208,5 +208,5 @@ export function DeviceTable({
         </table>
       </div>
     </div>
-  )
+  );
 }

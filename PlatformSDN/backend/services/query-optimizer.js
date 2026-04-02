@@ -6,7 +6,8 @@ class QueryOptimizer {
    * Get users with pagination and filtering
    */
   static async getUsersList(page = 1, limit = 20, filters = {}) {
-    let query = 'SELECT id, username, email, full_name, role, is_active, created_at FROM users WHERE 1=1';
+    let query =
+      'SELECT id, username, email, full_name, role, is_active, created_at FROM users WHERE 1=1';
     const params = [];
     let paramCount = 1;
 
@@ -126,7 +127,7 @@ class QueryOptimizer {
       })
       .join(',');
 
-    const values = metrics.flatMap(m => [
+    const values = metrics.flatMap((m) => [
       m.metric_type,
       m.metric_name,
       m.metric_value,
@@ -148,7 +149,7 @@ class QueryOptimizer {
     const queries = [
       'DELETE FROM api_request_cache WHERE expires_at < NOW()',
       'DELETE FROM device_cache WHERE ttl_expires_at < NOW()',
-      'DELETE FROM audit_logs WHERE created_at < NOW() - INTERVAL \'90 days\'',
+      "DELETE FROM audit_logs WHERE created_at < NOW() - INTERVAL '90 days'",
     ];
 
     for (const query of queries) {

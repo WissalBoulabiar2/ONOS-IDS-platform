@@ -31,9 +31,7 @@ function performanceMiddleware(req, res, next) {
 
     // Log slow requests (> 1000ms)
     if (duration > 1000) {
-      console.warn(
-        `[Perf Warn] ${key} took ${duration}ms (limit: 1000ms)`
-      );
+      console.warn(`[Perf Warn] ${key} took ${duration}ms (limit: 1000ms)`);
     }
 
     return originalJson(data);

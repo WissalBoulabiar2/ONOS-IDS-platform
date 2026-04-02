@@ -5,7 +5,7 @@ describe('Database Module', () => {
   beforeEach(() => {
     // Reset module cache before each test
     jest.resetModules();
-    db = require('../../db');
+    db = require('../db');
   });
 
   describe('Pool Management', () => {
@@ -22,19 +22,18 @@ describe('Database Module', () => {
     });
 
     test('should throw error when querying before initialization', async () => {
-      expect(() => {
-        db.query('SELECT 1');
-      }).toThrow('Database pool not initialized');
+      await expect(db.query('SELECT 1')).rejects.toThrow('Database pool not initialized');
     });
   });
 
   describe('Configuration', () => {
     test('should use environment variables for configuration', () => {
+      jest.resetModules();
       process.env.DB_USER = 'testuser';
       process.env.DB_HOST = 'testhost';
 
       // This test verifies the config module respects env vars
-      const config = require('../../config');
+      const config = require('../config');
       expect(config.DATABASE.user).toBe('testuser');
       expect(config.DATABASE.host).toBe('testhost');
     });

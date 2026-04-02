@@ -1,185 +1,181 @@
-"use client"
+'use client';
 
-import { useEffect, useMemo, useRef, useState } from "react"
-import { Bot, Send, Sparkles, User, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-import type { DashboardOverviewResponse, DashboardStatsResponse } from "@/services/api"
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Bot, Send, Sparkles, User, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import type { DashboardOverviewResponse, DashboardStatsResponse } from '@/services/api';
 
 interface AssistantMessage {
-  id: string
-  role: "assistant" | "user"
-  text: string
+  id: string;
+  role: 'assistant' | 'user';
+  text: string;
 }
 
 interface DashboardChatbotProps {
-  stats: DashboardStatsResponse["stats"] | null | undefined
-  overview: DashboardOverviewResponse | null
-  linkLoadCount: number
+  stats: DashboardStatsResponse['stats'] | null | undefined;
+  overview: DashboardOverviewResponse | null;
+  linkLoadCount: number;
 }
 
 function buildAssistantReply(
   input: string,
-  stats: DashboardStatsResponse["stats"] | null | undefined,
+  stats: DashboardStatsResponse['stats'] | null | undefined,
   overview: DashboardOverviewResponse | null,
   linkLoadCount: number
 ) {
   const text = input
     .trim()
     .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
 
-  const totalDevices = stats?.total_devices ?? 0
-  const totalHosts = overview?.hosts?.total ?? 0
-  const totalFlows = stats?.total_flows ?? 0
-  const activeAlerts = stats?.active_alerts ?? 0
-  const activeApps = overview?.applications?.active ?? 0
-  const totalApps = overview?.applications?.total ?? 0
-  const onlineNodes = overview?.cluster?.online ?? 0
-  const totalNodes = overview?.cluster?.total ?? 0
-  const controllerVersion = overview?.controller?.version || "inconnue"
-  const activeLinks = stats?.active_links ?? 0
-
-  if (
-    text.includes("summary") ||
-    text.includes("network") ||
-    text.includes("resume") ||
-    text.includes("situation") ||
-    text.includes("apercu")
-  ) {
-    return `Resume actuel: ${totalDevices} equipements, ${totalHosts} hotes, ${totalFlows} flux et ${activeAlerts} alertes ouvertes.`
-  }
-
-  if (text.includes("alert") || text.includes("alerte")) {
-    return `Le dashboard affiche actuellement ${activeAlerts} alertes actives.`
-  }
+  const totalDevices = stats?.total_devices ?? 0;
+  const totalHosts = overview?.hosts?.total ?? 0;
+  const totalFlows = stats?.total_flows ?? 0;
+  const activeAlerts = stats?.active_alerts ?? 0;
+  const activeApps = overview?.applications?.active ?? 0;
+  const totalApps = overview?.applications?.total ?? 0;
+  const onlineNodes = overview?.cluster?.online ?? 0;
+  const totalNodes = overview?.cluster?.total ?? 0;
+  const controllerVersion = overview?.controller?.version || 'inconnue';
+  const activeLinks = stats?.active_links ?? 0;
 
   if (
-    text.includes("device") ||
-    text.includes("switch") ||
-    text.includes("host") ||
-    text.includes("equipement") ||
-    text.includes("hote")
+    text.includes('summary') ||
+    text.includes('network') ||
+    text.includes('resume') ||
+    text.includes('situation') ||
+    text.includes('apercu')
   ) {
-    return `La plateforme montre ${totalDevices} equipements reseau et ${totalHosts} hotes decouverts.`
+    return `Resume actuel: ${totalDevices} equipements, ${totalHosts} hotes, ${totalFlows} flux et ${activeAlerts} alertes ouvertes.`;
   }
 
-  if (text.includes("app") || text.includes("application")) {
-    return `ONOS signale ${activeApps} applications actives sur ${totalApps} installees.`
+  if (text.includes('alert') || text.includes('alerte')) {
+    return `Le dashboard affiche actuellement ${activeAlerts} alertes actives.`;
   }
 
   if (
-    text.includes("cluster") ||
-    text.includes("controller") ||
-    text.includes("controleur")
+    text.includes('device') ||
+    text.includes('switch') ||
+    text.includes('host') ||
+    text.includes('equipement') ||
+    text.includes('hote')
   ) {
-    return `Etat du cluster: ${onlineNodes} noeuds en ligne sur ${totalNodes}, version du controleur ${controllerVersion}.`
+    return `La plateforme montre ${totalDevices} equipements reseau et ${totalHosts} hotes decouverts.`;
+  }
+
+  if (text.includes('app') || text.includes('application')) {
+    return `ONOS signale ${activeApps} applications actives sur ${totalApps} installees.`;
+  }
+
+  if (text.includes('cluster') || text.includes('controller') || text.includes('controleur')) {
+    return `Etat du cluster: ${onlineNodes} noeuds en ligne sur ${totalNodes}, version du controleur ${controllerVersion}.`;
   }
 
   if (
-    text.includes("topology") ||
-    text.includes("topologie") ||
-    text.includes("link") ||
-    text.includes("lien")
+    text.includes('topology') ||
+    text.includes('topologie') ||
+    text.includes('link') ||
+    text.includes('lien')
   ) {
-    return `La topologie expose ${activeLinks} liens actifs et ${linkLoadCount} mesures de charge sur les liens.`
+    return `La topologie expose ${activeLinks} liens actifs et ${linkLoadCount} mesures de charge sur les liens.`;
   }
 
   if (
-    text.includes("flow") ||
-    text.includes("flux") ||
-    text.includes("intent") ||
-    text.includes("intention")
+    text.includes('flow') ||
+    text.includes('flux') ||
+    text.includes('intent') ||
+    text.includes('intention')
   ) {
-    return `Instantane trafic: ${totalFlows} flux sont visibles dans le dashboard et le resume des intents est pret dans le panneau dedie.`
+    return `Instantane trafic: ${totalFlows} flux sont visibles dans le dashboard et le resume des intents est pret dans le panneau dedie.`;
   }
 
   if (
-    text.includes("help") ||
-    text.includes("aide") ||
-    text.includes("que peux tu faire") ||
-    text.includes("what can you do")
+    text.includes('help') ||
+    text.includes('aide') ||
+    text.includes('que peux tu faire') ||
+    text.includes('what can you do')
   ) {
-    return "Je peux resumer rapidement les alertes, les equipements, les applications, l'etat du controleur, les liens et la topologie du dashboard."
+    return "Je peux resumer rapidement les alertes, les equipements, les applications, l'etat du controleur, les liens et la topologie du dashboard.";
   }
 
-  return "Essayez par exemple: resume reseau, alertes actives, applications ONOS, etat du controleur ou topologie."
+  return 'Essayez par exemple: resume reseau, alertes actives, applications ONOS, etat du controleur ou topologie.';
 }
 
 export function DashboardChatbot({ stats, overview, linkLoadCount }: DashboardChatbotProps) {
-  const [draft, setDraft] = useState("")
-  const [isOpen, setIsOpen] = useState(false)
+  const [draft, setDraft] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<AssistantMessage[]>([
     {
-      id: "welcome",
-      role: "assistant",
-      text: "Assistant IA pret. Je peux vous donner un resume rapide des alertes, des equipements, des applications et de la topologie.",
+      id: 'welcome',
+      role: 'assistant',
+      text: 'Assistant IA pret. Je peux vous donner un resume rapide des alertes, des equipements, des applications et de la topologie.',
     },
-  ])
-  const messagesContainerRef = useRef<HTMLDivElement | null>(null)
+  ]);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   const quickPrompts = useMemo(
-    () => ["Resume reseau", "Alertes actives", "Applications ONOS", "Etat du controleur"],
+    () => ['Resume reseau', 'Alertes actives', 'Applications ONOS', 'Etat du controleur'],
     []
-  )
+  );
 
   useEffect(() => {
     if (!isOpen) {
-      return
+      return;
     }
 
-    const container = messagesContainerRef.current
+    const container = messagesContainerRef.current;
     if (!container) {
-      return
+      return;
     }
 
     container.scrollTo({
       top: container.scrollHeight,
-      behavior: "smooth",
-    })
-  }, [isOpen, messages])
+      behavior: 'smooth',
+    });
+  }, [isOpen, messages]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsOpen(false)
+      if (event.key === 'Escape') {
+        setIsOpen(false);
       }
-    }
+    };
 
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [])
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const submitMessage = (value?: string) => {
-    const content = (value ?? draft).trim()
+    const content = (value ?? draft).trim();
 
     if (!content) {
-      return
+      return;
     }
 
     const userMessage: AssistantMessage = {
       id: `user-${Date.now()}`,
-      role: "user",
+      role: 'user',
       text: content,
-    }
+    };
 
     const assistantMessage: AssistantMessage = {
       id: `assistant-${Date.now() + 1}`,
-      role: "assistant",
+      role: 'assistant',
       text: buildAssistantReply(content, stats, overview, linkLoadCount),
-    }
+    };
 
-    setMessages((current) => [...current, userMessage, assistantMessage])
-    setDraft("")
-    setIsOpen(true)
-  }
+    setMessages((current) => [...current, userMessage, assistantMessage]);
+    setDraft('');
+    setIsOpen(true);
+  };
 
   const headerStats = [
-    { label: "Devices", value: stats?.total_devices ?? 0 },
-    { label: "Alerts", value: stats?.active_alerts ?? 0 },
-    { label: "Apps", value: overview?.applications?.active ?? 0 },
-  ]
+    { label: 'Devices', value: stats?.total_devices ?? 0 },
+    { label: 'Alerts', value: stats?.active_alerts ?? 0 },
+    { label: 'Apps', value: overview?.applications?.active ?? 0 },
+  ];
 
   return (
     <div className="pointer-events-none fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3 sm:bottom-6 sm:right-6">
@@ -256,37 +252,42 @@ export function DashboardChatbot({ stats, overview, linkLoadCount }: DashboardCh
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={cn("flex", message.role === "assistant" ? "justify-start" : "justify-end")}
+                    className={cn(
+                      'flex',
+                      message.role === 'assistant' ? 'justify-start' : 'justify-end'
+                    )}
                   >
                     <div
                       className={cn(
-                        "max-w-[86%] rounded-[24px] px-4 py-3 shadow-sm",
-                        message.role === "assistant"
-                          ? "bg-[linear-gradient(135deg,#0f172a,#155e75)] text-white"
-                          : "border border-slate-200 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                        'max-w-[86%] rounded-[24px] px-4 py-3 shadow-sm',
+                        message.role === 'assistant'
+                          ? 'bg-[linear-gradient(135deg,#0f172a,#155e75)] text-white'
+                          : 'border border-slate-200 bg-white text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100'
                       )}
                     >
                       <div
                         className={cn(
-                          "mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.24em]",
-                          message.role === "assistant" ? "text-cyan-100/80" : "text-slate-500 dark:text-slate-400"
+                          'mb-2 flex items-center gap-2 text-[11px] uppercase tracking-[0.24em]',
+                          message.role === 'assistant'
+                            ? 'text-cyan-100/80'
+                            : 'text-slate-500 dark:text-slate-400'
                         )}
                       >
                         <div
                           className={cn(
-                            "flex h-6 w-6 items-center justify-center rounded-full",
-                            message.role === "assistant"
-                              ? "bg-white/12 text-cyan-100"
-                              : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                            'flex h-6 w-6 items-center justify-center rounded-full',
+                            message.role === 'assistant'
+                              ? 'bg-white/12 text-cyan-100'
+                              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-200'
                           )}
                         >
-                          {message.role === "assistant" ? (
+                          {message.role === 'assistant' ? (
                             <Bot className="h-3.5 w-3.5" />
                           ) : (
                             <User className="h-3.5 w-3.5" />
                           )}
                         </div>
-                        {message.role === "assistant" ? "Assistant" : "Vous"}
+                        {message.role === 'assistant' ? 'Assistant' : 'Vous'}
                       </div>
                       <p className="text-sm leading-6">{message.text}</p>
                     </div>
@@ -298,8 +299,8 @@ export function DashboardChatbot({ stats, overview, linkLoadCount }: DashboardCh
             <form
               className="rounded-[24px] border border-slate-200/80 bg-white/88 p-2 shadow-sm dark:border-slate-800 dark:bg-slate-900/80"
               onSubmit={(event) => {
-                event.preventDefault()
-                submitMessage()
+                event.preventDefault();
+                submitMessage();
               }}
             >
               <div className="flex items-center gap-2">
@@ -343,5 +344,5 @@ export function DashboardChatbot({ stats, overview, linkLoadCount }: DashboardCh
         </span>
       </button>
     </div>
-  )
+  );
 }

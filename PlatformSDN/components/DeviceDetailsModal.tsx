@@ -1,9 +1,9 @@
-"use client"
+'use client';
 
-import React from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import React from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   BarChart,
   Bar,
@@ -14,33 +14,33 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
-} from "recharts"
-import { Network } from "lucide-react"
+} from 'recharts';
+import { Network } from 'lucide-react';
 
 interface Device {
-  id: string
-  type: string
-  available: boolean
-  manufacturer?: string
-  serialNumber?: string
+  id: string;
+  type: string;
+  available: boolean;
+  manufacturer?: string;
+  serialNumber?: string;
 }
 
 interface Port {
-  portNumber: number
-  enabled: boolean
-  live: boolean
-  rxBytes: number
-  txBytes: number
-  rxPackets: number
-  txPackets: number
+  portNumber: number;
+  enabled: boolean;
+  live: boolean;
+  rxBytes: number;
+  txBytes: number;
+  rxPackets: number;
+  txPackets: number;
 }
 
 interface DeviceDetailsModalProps {
-  device: Device | null
-  ports: Port[]
-  isOpen: boolean
-  onClose: () => void
-  isLoading?: boolean
+  device: Device | null;
+  ports: Port[];
+  isOpen: boolean;
+  onClose: () => void;
+  isLoading?: boolean;
 }
 
 export function DeviceDetailsModal({
@@ -50,22 +50,22 @@ export function DeviceDetailsModal({
   onClose,
   isLoading = false,
 }: DeviceDetailsModalProps) {
-  if (!device) return null
+  if (!device) return null;
 
   // Mock data pour graphiques
   const trafficData = [
-    { time: "00:00", rx: 100, tx: 80 },
-    { time: "04:00", rx: 150, tx: 120 },
-    { time: "08:00", rx: 200, tx: 180 },
-    { time: "12:00", rx: 280, tx: 240 },
-    { time: "16:00", rx: 320, tx: 300 },
-  ]
+    { time: '00:00', rx: 100, tx: 80 },
+    { time: '04:00', rx: 150, tx: 120 },
+    { time: '08:00', rx: 200, tx: 180 },
+    { time: '12:00', rx: 280, tx: 240 },
+    { time: '16:00', rx: 320, tx: 300 },
+  ];
 
   const portStatsData = (ports || []).map((port) => ({
     name: `Port ${port.portNumber}`,
     rx: port.rxBytes,
     tx: port.txBytes,
-  }))
+  }));
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -86,20 +86,20 @@ export function DeviceDetailsModal({
             </div>
             <div>
               <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Status</p>
-              <Badge variant={device.available ? "default" : "destructive"}>
-                {device.available ? "Online" : "Offline"}
+              <Badge variant={device.available ? 'default' : 'destructive'}>
+                {device.available ? 'Online' : 'Offline'}
               </Badge>
             </div>
             <div>
               <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Manufacturer</p>
               <p className="text-lg font-bold text-gray-900 dark:text-white">
-                {device.manufacturer || "Unknown"}
+                {device.manufacturer || 'Unknown'}
               </p>
             </div>
             <div>
               <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">Serial</p>
               <p className="text-sm font-mono text-gray-900 dark:text-white">
-                {device.serialNumber || "N/A"}
+                {device.serialNumber || 'N/A'}
               </p>
             </div>
           </div>
@@ -140,10 +140,10 @@ export function DeviceDetailsModal({
                           <td className="px-4 py-3">
                             <div className="flex gap-2">
                               <Badge
-                                variant={port.enabled ? "default" : "outline"}
+                                variant={port.enabled ? 'default' : 'outline'}
                                 className="text-xs"
                               >
-                                {port.enabled ? "Enabled" : "Disabled"}
+                                {port.enabled ? 'Enabled' : 'Disabled'}
                               </Badge>
                               {port.live && (
                                 <Badge variant="secondary" className="text-xs">
@@ -220,5 +220,5 @@ export function DeviceDetailsModal({
         </div>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

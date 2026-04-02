@@ -1,25 +1,25 @@
-"use client"
+'use client';
 
-import type React from "react"
+import type React from 'react';
 
-import { useState } from "react"
-import Link from "next/link"
-import Navigation from "@/components/navigation"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { ArrowLeft, ArrowRight, CheckCircle2, KeyRound, ShieldCheck } from "lucide-react"
+import { useState } from 'react';
+import Link from 'next/link';
+import Navigation from '@/components/navigation';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ArrowLeft, ArrowRight, CheckCircle2, KeyRound, ShieldCheck } from 'lucide-react';
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("")
-  const [submitted, setSubmitted] = useState(false)
+  const [email, setEmail] = useState('');
+  const [submitted, setSubmitted] = useState(false);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setSubmitted(true)
-  }
+    event.preventDefault();
+    setSubmitted(true);
+  };
 
   return (
     <div className="min-h-screen bg-white text-gray-900 dark:bg-gray-950 dark:text-white">
@@ -36,10 +36,12 @@ export default function ForgotPasswordPage() {
                 Operator Access
               </Badge>
             </div>
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Reset Operator Password</h1>
+            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
+              Reset Operator Password
+            </h1>
             <p className="mt-4 max-w-xl text-sm text-slate-300 sm:text-base">
-              This recovery page is prepared for the future authentication backend. It will later trigger
-              a secure reset workflow for admin, operator, and viewer accounts.
+              This recovery page is prepared for the future authentication backend. It will later
+              trigger a secure reset workflow for admin, operator, and viewer accounts.
             </p>
 
             <div className="mt-8 space-y-4">
@@ -48,7 +50,8 @@ export default function ForgotPasswordPage() {
                 <div>
                   <p className="font-semibold">Secure recovery</p>
                   <p className="mt-1 text-sm text-slate-300">
-                    The final implementation will use backend validation, email tokens, and account auditing.
+                    The final implementation will use backend validation, email tokens, and account
+                    auditing.
                   </p>
                 </div>
               </div>
@@ -78,7 +81,8 @@ export default function ForgotPasswordPage() {
                     <CheckCircle2 className="mx-auto mb-4 h-12 w-12 text-emerald-500" />
                     <p className="text-xl font-semibold">Reset Request Sent</p>
                     <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
-                      A future backend workflow will send a secure reset link to <span className="font-medium">{email}</span>.
+                      A future backend workflow will send a secure reset link to{' '}
+                      <span className="font-medium">{email}</span>.
                     </p>
                     <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
                       <Button asChild className="bg-cyan-600 text-white hover:bg-cyan-700">
@@ -107,7 +111,10 @@ export default function ForgotPasswordPage() {
                       />
                     </div>
 
-                    <Button type="submit" className="w-full bg-cyan-600 text-white hover:bg-cyan-700">
+                    <Button
+                      type="submit"
+                      className="w-full bg-cyan-600 text-white hover:bg-cyan-700"
+                    >
                       Request Password Reset
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
@@ -127,5 +134,5 @@ export default function ForgotPasswordPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }

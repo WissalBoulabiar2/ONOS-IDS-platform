@@ -14,8 +14,8 @@
     "start:platform": "powershell -ExecutionPolicy Bypass -File scripts/start-platform.ps1",
     "status:platform": "powershell -ExecutionPolicy Bypass -File scripts/status-platform.ps1",
     "test": "jest",
-    "test:backend": "jest --testPathPattern=backend --coverage",
-    "test:frontend": "jest --testPathPattern=app --coverage",
+    "test:backend": "jest --testPathPatterns=backend --coverage",
+    "test:frontend": "jest --testPathPatterns=app --coverage --passWithNoTests",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"
   },

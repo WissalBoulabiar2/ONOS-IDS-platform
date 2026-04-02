@@ -36,10 +36,9 @@ function verifyToken(token) {
 
 async function authenticate(username, password) {
   try {
-    const result = await db.query(
-      'SELECT * FROM users WHERE username = $1 OR email = $1',
-      [username]
-    );
+    const result = await db.query('SELECT * FROM users WHERE username = $1 OR email = $1', [
+      username,
+    ]);
 
     if (result.rows.length === 0) {
       throw new Error('User not found');
@@ -57,10 +56,7 @@ async function authenticate(username, password) {
     }
 
     // Update last login
-    await db.query(
-      'UPDATE users SET last_login = NOW() WHERE id = $1',
-      [user.id]
-    );
+    await db.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
 
     const token = generateToken(user);
     return { token, user: sanitizeUser(user) };

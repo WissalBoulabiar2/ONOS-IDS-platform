@@ -5,6 +5,7 @@ Plateforme web de supervision, d'observabilite et d'orchestration SDN autour du 
 Ce README est la reference principale du projet.
 
 Regle de travail:
+
 - a chaque amelioration importante frontend, backend, base de donnees, auth ou integration ONOS, ce fichier doit etre mis a jour
 - quand on reprend le projet apres une pause, on recommence ici
 - avant chaque session importante, lire aussi `AGENT_PLATFORMSDN.md`
@@ -50,6 +51,23 @@ Regle de travail:
 - exploitation progressive de toutes les APIs ONOS avancees
 
 ## 2. Journal du projet
+
+### Mise a jour du 2 avril 2026
+
+- audit technique du repo effectue avant nouveaux correctifs
+- constat confirme:
+  - le backend reel tourne encore principalement sur `backend/server.js`
+  - la pile `controllers/`, `routes/`, `services/` backend existe mais n'est pas la source principale du runtime actuel
+  - plusieurs tests etaient desynchronises du code reel ou du layout actuel du repo
+- remise a niveau de la base qualite:
+  - `npm install` relance dans `PlatformSDN` pour restaurer les dependances locales manquantes
+  - configuration Jest corrigee pour couvrir le bon dossier `backend/`
+  - exclusion des fichiers utilitaires `setup.js` et `utils/test-helpers.js` de la detection des suites
+  - tests backend obsoletes remis a jour
+  - test d'integration de routage remplace pour verifier le cablage auth/public/protected des routes modulaires
+- correction backend utile:
+  - valeur par defaut du rate limiter corrigee
+  - timers backend (`cache`, cleanup rate limiter) passes en `unref()` pour ne plus bloquer la fin des tests
 
 ### Mise a jour du 1 avril 2026
 
@@ -123,16 +141,17 @@ Regle de travail:
 
 Le PDF `rapport_sdn_final.pdf` reste utile comme vision cible, mais le code reel a evolue.
 
-| Sujet | Rapport PDF | Repo actuel |
-| --- | --- | --- |
-| Frontend | React 18 + Vite + React Router | Next.js 15 App Router + React 19 |
-| Backend | Express + Prisma + Socket.io + node-cron | Express + `pg` + Axios + auth JWT |
-| Auth | prevue | operationnelle |
-| DB | PostgreSQL unique | PostgreSQL unique |
-| Source live | ONOS REST API | ONOS REST API |
-| UI | style Cisco / ONOS GUI | UI moderne Tailwind/Radix, login plus DNA-inspired |
+| Sujet       | Rapport PDF                              | Repo actuel                                        |
+| ----------- | ---------------------------------------- | -------------------------------------------------- |
+| Frontend    | React 18 + Vite + React Router           | Next.js 15 App Router + React 19                   |
+| Backend     | Express + Prisma + Socket.io + node-cron | Express + `pg` + Axios + auth JWT                  |
+| Auth        | prevue                                   | operationnelle                                     |
+| DB          | PostgreSQL unique                        | PostgreSQL unique                                  |
+| Source live | ONOS REST API                            | ONOS REST API                                      |
+| UI          | style Cisco / ONOS GUI                   | UI moderne Tailwind/Radix, login plus DNA-inspired |
 
 Conclusion:
+
 - le rapport est la vision cible
 - ce README decrit l'etat reel du code
 
@@ -197,56 +216,56 @@ Backend Express
 
 ## 6. Pages frontend actuelles
 
-| Route | Etat actuel | Source des donnees | Commentaire |
-| --- | --- | --- | --- |
-| `/` | redirection | `/dashboard` | suppression de l'ancien double dashboard |
-| `/dashboard` | backend live | backend + ONOS live | KPIs, charts, cluster, apps, hosts, intents, incidents, export PDF |
-| `/devices` | presque pret prod | backend + fallback mock | bonne base inventaire reseau |
-| `/topology` | backend live | ONOS direct | topologie reelle ONOS avec hosts, filtres et layouts |
-| `/flows` | backend live | backend live | GET/POST/DELETE reels vers ONOS |
-| `/alerts` | backend live | backend + PostgreSQL + ONOS derive | alertes detectees et historisees |
-| `/services` | backend live | ONOS VPLS REST | creation et gestion VPLS |
-| `/configuration` | statique | frontend | centre de config / cadrage |
-| `/login` | auth reelle | backend auth | JWT + bcrypt + design pro |
-| `/register` | UI seule | mock | a fusionner plus tard avec admin users |
-| `/forgot-password` | UI seule | mock | backend a faire |
-| `/contact` | UI seule | mock | futur support / ticketing |
-| `/admin/users` | operationnel | backend auth + DB | creation users par admin |
+| Route              | Etat actuel       | Source des donnees                 | Commentaire                                                        |
+| ------------------ | ----------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| `/`                | redirection       | `/dashboard`                       | suppression de l'ancien double dashboard                           |
+| `/dashboard`       | backend live      | backend + ONOS live                | KPIs, charts, cluster, apps, hosts, intents, incidents, export PDF |
+| `/devices`         | presque pret prod | backend + fallback mock            | bonne base inventaire reseau                                       |
+| `/topology`        | backend live      | ONOS direct                        | topologie reelle ONOS avec hosts, filtres et layouts               |
+| `/flows`           | backend live      | backend live                       | GET/POST/DELETE reels vers ONOS                                    |
+| `/alerts`          | backend live      | backend + PostgreSQL + ONOS derive | alertes detectees et historisees                                   |
+| `/services`        | backend live      | ONOS VPLS REST                     | creation et gestion VPLS                                           |
+| `/configuration`   | statique          | frontend                           | centre de config / cadrage                                         |
+| `/login`           | auth reelle       | backend auth                       | JWT + bcrypt + design pro                                          |
+| `/register`        | UI seule          | mock                               | a fusionner plus tard avec admin users                             |
+| `/forgot-password` | UI seule          | mock                               | backend a faire                                                    |
+| `/contact`         | UI seule          | mock                               | futur support / ticketing                                          |
+| `/admin/users`     | operationnel      | backend auth + DB                  | creation users par admin                                           |
 
 ## 7. Backend API actuelle
 
 ### Auth
 
-| Route | Methode | Role |
-| --- | --- | --- |
-| `/api/auth/login` | `POST` | connexion JWT |
-| `/api/auth/me` | `GET` | profil utilisateur courant |
-| `/api/users` | `GET` | liste des users, admin seulement |
-| `/api/users` | `POST` | creation de user, admin seulement |
+| Route             | Methode | Role                              |
+| ----------------- | ------- | --------------------------------- |
+| `/api/auth/login` | `POST`  | connexion JWT                     |
+| `/api/auth/me`    | `GET`   | profil utilisateur courant        |
+| `/api/users`      | `GET`   | liste des users, admin seulement  |
+| `/api/users`      | `POST`  | creation de user, admin seulement |
 
 ### SDN Core
 
-| Route | Methode | Role |
-| --- | --- | --- |
-| `/api/health` | `GET` | sante backend / ONOS / DB |
-| `/api/devices` | `GET` | inventaire des devices |
-| `/api/devices/:deviceId/ports` | `GET` | ports d'un device |
-| `/api/topology` | `GET` | noeuds + liens, supporte `?source=onos|database|auto` |
-| `/api/flows` | `GET` | liste des flows |
-| `/api/flows/:deviceId` | `POST` | creation d'une flow ONOS |
-| `/api/flows/:deviceId/:flowId` | `DELETE` | suppression d'une flow ONOS |
-| `/api/alerts` | `GET` | feed d'alertes reel |
-| `/api/alerts/:id/resolve` | `POST` | resolution d'une alerte |
-| `/api/dashboard/stats` | `GET` | KPI dashboard |
-| `/api/dashboard/overview` | `GET` | vue controller, cluster, applications, hosts, intents |
-| `/api/dashboard/link-load` | `GET` | telemetrie charge lien |
-| `/api/services/vpls` | `GET` | liste VPLS |
-| `/api/services/vpls` | `POST` | creation VPLS |
-| `/api/services/vpls/:name` | `DELETE` | suppression VPLS |
-| `/api/services/vpls/:name/interfaces` | `POST` | ajout interface VPLS |
-| `/api/services/vpls/:name/interfaces/:interfaceName` | `DELETE` | suppression interface VPLS |
-| `/api/metrics/devices` | `GET` | metrics agregees par device |
-| `/api/metrics/port-history/:deviceId/:port` | `GET` | historique d'un port |
+| Route                                                | Methode  | Role                                                  |
+| ---------------------------------------------------- | -------- | ----------------------------------------------------- | -------- | ----- |
+| `/api/health`                                        | `GET`    | sante backend / ONOS / DB                             |
+| `/api/devices`                                       | `GET`    | inventaire des devices                                |
+| `/api/devices/:deviceId/ports`                       | `GET`    | ports d'un device                                     |
+| `/api/topology`                                      | `GET`    | noeuds + liens, supporte `?source=onos                | database | auto` |
+| `/api/flows`                                         | `GET`    | liste des flows                                       |
+| `/api/flows/:deviceId`                               | `POST`   | creation d'une flow ONOS                              |
+| `/api/flows/:deviceId/:flowId`                       | `DELETE` | suppression d'une flow ONOS                           |
+| `/api/alerts`                                        | `GET`    | feed d'alertes reel                                   |
+| `/api/alerts/:id/resolve`                            | `POST`   | resolution d'une alerte                               |
+| `/api/dashboard/stats`                               | `GET`    | KPI dashboard                                         |
+| `/api/dashboard/overview`                            | `GET`    | vue controller, cluster, applications, hosts, intents |
+| `/api/dashboard/link-load`                           | `GET`    | telemetrie charge lien                                |
+| `/api/services/vpls`                                 | `GET`    | liste VPLS                                            |
+| `/api/services/vpls`                                 | `POST`   | creation VPLS                                         |
+| `/api/services/vpls/:name`                           | `DELETE` | suppression VPLS                                      |
+| `/api/services/vpls/:name/interfaces`                | `POST`   | ajout interface VPLS                                  |
+| `/api/services/vpls/:name/interfaces/:interfaceName` | `DELETE` | suppression interface VPLS                            |
+| `/api/metrics/devices`                               | `GET`    | metrics agregees par device                           |
+| `/api/metrics/port-history/:deviceId/:port`          | `GET`    | historique d'un port                                  |
 
 ### Logique actuelle
 
@@ -325,6 +344,7 @@ PlatformSDN/
 7. Ouvrir `/dashboard`, `/topology`, `/flows`, `/alerts`, `/services`, `/admin/users`
 
 Important:
+
 - ouvrir le site sur `http://localhost:3000/login`
 - ne pas ouvrir `http://localhost:5000` pour l'interface
 - le port `5000` correspond au backend API
@@ -404,6 +424,7 @@ docker compose up -d
 ```
 
 Note:
+
 - sur cette machine, Docker Desktop indique actuellement `hasNoVirtualization=true`
 - cela bloque le demarrage de PostgreSQL via Docker
 - la plateforme reste tout de meme testable grace au local store
@@ -421,6 +442,7 @@ npm run status:platform
 ```
 
 URLs utiles:
+
 - frontend: `http://localhost:3000/login`
 - backend health: `http://localhost:5000/api/health`
 
@@ -443,6 +465,7 @@ La plateforme doit exploiter progressivement les modules ONOS, pas seulement que
 ### Dashboard / Executive View
 
 APIs a exploiter:
+
 - `/system`
 - `/cluster`
 - `/applications`
@@ -454,6 +477,7 @@ APIs a exploiter:
 - `/intents/minisummary`
 
 Ameliorations recommandees pour `/dashboard`:
+
 - deja en place:
   - carte controller
   - cluster nodes
@@ -473,6 +497,7 @@ Ameliorations recommandees pour `/dashboard`:
 ### Topology
 
 APIs a exploiter:
+
 - `/topology`
 - `/links`
 - `/hosts`
@@ -481,6 +506,7 @@ APIs a exploiter:
 - `/regions`
 
 Etat actuel:
+
 - `topology` est branchee au backend reel et doit maintenant lire ONOS en direct par defaut
 - `topology` lit maintenant ONOS en direct avec:
   - coloration des liens par charge
@@ -490,6 +516,7 @@ Etat actuel:
   - mise en evidence visuelle du chemin calcule
 
 Prochaines ameliorations:
+
 - details de lien
 - details d'hotes
 - calcul de chemins
@@ -498,6 +525,7 @@ Prochaines ameliorations:
 - comparaison ONOS live vs DB cache seulement comme mode optionnel
 
 Idees concretes pour ameliorer la topologie:
+
 - ajouter un mode de layout `hierarchy` pour les topologies spine-leaf
 - afficher les ports sur les liens uniquement au survol pour eviter la surcharge visuelle
 - ajouter un filtre `hosts / infrastructure / inactive only`
@@ -515,6 +543,7 @@ Idees concretes pour ameliorer la topologie:
 ### Flow Engineering
 
 APIs a exploiter:
+
 - `/flows`
 - `/flowobjectives`
 - `/nextobjectives`
@@ -522,11 +551,13 @@ APIs a exploiter:
 - `/meters`
 
 Etat actuel:
+
 - `GET /flows` branche
 - `POST /flows/:deviceId` branche
 - `DELETE /flows/:deviceId/:flowId` branche
 
 Prochaines ameliorations:
+
 - filtres par `deviceId`, `appId`, `state`, `tableId`
 - duplication d'une flow
 - formulaire avance match / action
@@ -535,11 +566,13 @@ Prochaines ameliorations:
 ### Intent And IMR
 
 Swagger IMR fourni:
+
 - `/imr/monitoredIntents`
 - `/imr/intentStats`
 - `/imr/reRouteIntents`
 
 Idee produit:
+
 - page `Intent Monitor`
 - page `Reroute Center`
 - vue `Intent -> Related flows`
@@ -548,6 +581,7 @@ Idee produit:
 ### VPLS And Services
 
 Swagger VPLS fourni:
+
 - `GET /onos/vpls`
 - `POST /onos/vpls`
 - `GET /onos/vpls/{vplsName}`
@@ -556,6 +590,7 @@ Swagger VPLS fourni:
 - `DELETE /onos/vpls/interface/{vplsName}/{interfaceName}`
 
 Idee produit:
+
 - page `Services` deja ajoutee
 - creation d'un VPLS deja branchee
 - ajout/suppression interfaces deja branche
@@ -567,6 +602,7 @@ Idee produit:
 ### Network Configuration And Operations
 
 APIs a exploiter:
+
 - `/network/configuration`
 - `/configuration`
 - `/applications`
@@ -576,6 +612,7 @@ APIs a exploiter:
 - `/keys`
 
 Idee produit:
+
 - page `Controller Operations`
 - page `Applications`
 - page `Cluster & Mastership`
@@ -685,6 +722,7 @@ npm run status:platform
 ```
 
 Note:
+
 - `npm run start:platform` fait maintenant un `build` propre puis lance le frontend en mode production pour eviter les pages qui s'affichent en HTML brut quand les assets de `next dev` ne sont pas encore stables
 
 ## 20. Verification de cette iteration
@@ -740,6 +778,7 @@ Ordre conseille maintenant:
 PlatformSDN n'est plus seulement une maquette frontend.
 
 La base actuelle contient deja:
+
 - une auth reelle
 - une navigation protegee
 - une topologie live
@@ -755,6 +794,7 @@ La suite logique est de transformer le dashboard en vrai centre d'exploitation e
 Le document `AGENT_PLATFORMSDN.md` complete ce README.
 
 Il contient:
+
 - la vision produit detaillee par page
 - les APIs ONOS a exploiter ou finir de brancher
 - les routes backend a ajouter

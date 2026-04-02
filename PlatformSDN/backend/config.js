@@ -17,10 +17,7 @@ module.exports = {
     secret: process.env.JWT_SECRET || 'change-me-platformsdn-secret',
     expiresIn: process.env.JWT_EXPIRES_IN || '8h',
   },
-  BCRYPT_SALT_ROUNDS: Number.parseInt(
-    process.env.BCRYPT_SALT_ROUNDS || '10',
-    10
-  ),
+  BCRYPT_SALT_ROUNDS: Number.parseInt(process.env.BCRYPT_SALT_ROUNDS || '10', 10),
   AUTO_SYNC: {
     enabled: process.env.ENABLE_AUTO_SYNC === 'true',
     interval: Number.parseInt(process.env.SYNC_INTERVAL_MS || '5000', 10),
@@ -32,4 +29,4 @@ module.exports = {
     password: process.env.DEFAULT_ADMIN_PASSWORD || 'admin123',
     role: 'admin',
   },
-}
+};

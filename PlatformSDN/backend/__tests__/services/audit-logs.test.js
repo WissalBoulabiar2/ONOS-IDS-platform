@@ -1,17 +1,19 @@
 // PlatformSDN/backend/__tests__/services/audit-logs.test.js
 const auditService = require('../../services/audit-logs');
 const db = require('../../db');
+const cache = require('../../cache');
 
 jest.mock('../../db');
 
 describe('AuditService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    cache.clear();
   });
 
   describe('logAction', () => {
     it('should log action to database', async () => {
-      db.query.mockResolvedValue({ rowCount: 1 });
+      db.query.mockResolvedValue({ rows: [{ id: 1 }], rowCount: 1 });
 
       await auditService.logAction({
         userId: 1,
@@ -31,9 +33,7 @@ describe('AuditService', () => {
 
   describe('getAuditLogs', () => {
     it('should retrieve audit logs', async () => {
-      const logs = [
-        { id: 1, action: 'LOGIN', status: 'SUCCESS', created_at: new Date() },
-      ];
+      const logs = [{ id: 1, action: 'LOGIN', status: 'SUCCESS', created_at: new Date() }];
       db.query.mockResolvedValue({ rows: logs });
 
       const result = await auditService.getAuditLogs();
@@ -45,9 +45,7 @@ describe('AuditService', () => {
 
   describe('getSuspiciousActivities', () => {
     it('should detect suspicious activities', async () => {
-      const activities = [
-        { user_id: 1, failed_attempts: 6, created_at: new Date() },
-      ];
+      const activities = [{ user_id: 1, failed_attempts: 6, created_at: new Date() }];
       db.query.mockResolvedValue({ rows: activities });
 
       const result = await auditService.getSuspiciousActivities();

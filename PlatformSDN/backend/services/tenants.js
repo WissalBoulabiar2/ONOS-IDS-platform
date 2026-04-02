@@ -74,7 +74,9 @@ class TenantService {
     if (cached) return cached;
 
     try {
-      const result = await db.query('SELECT * FROM tenants WHERE is_active = true ORDER BY created_at DESC');
+      const result = await db.query(
+        'SELECT * FROM tenants WHERE is_active = true ORDER BY created_at DESC'
+      );
       cache.set(cacheKey, result.rows, 600);
       return result.rows;
     } catch (error) {
@@ -141,10 +143,9 @@ class TenantService {
     if (cached) return cached;
 
     try {
-      const result = await db.query(
-        'SELECT * FROM tenant_onos_config WHERE tenant_id = $1',
-        [tenantId]
-      );
+      const result = await db.query('SELECT * FROM tenant_onos_config WHERE tenant_id = $1', [
+        tenantId,
+      ]);
 
       if (result.rows.length === 0) {
         throw new Error('ONOS configuration not found for tenant');

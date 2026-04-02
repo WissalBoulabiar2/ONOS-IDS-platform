@@ -1,55 +1,55 @@
-"use client"
+'use client';
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useMemo } from "react"
-import { Bell, Search, Wifi } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { UserMenu } from "./user-menu"
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useMemo } from 'react';
+import { Bell, Search, Wifi } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { UserMenu } from './user-menu';
 
 interface Breadcrumb {
-  label: string
-  href?: string
+  label: string;
+  href?: string;
 }
 
 function generateBreadcrumbs(pathname: string): Breadcrumb[] {
-  const breadcrumbs: Breadcrumb[] = []
+  const breadcrumbs: Breadcrumb[] = [];
 
   // Always start with Dashboard
-  breadcrumbs.push({ label: "Dashboard", href: "/dashboard" })
+  breadcrumbs.push({ label: 'Dashboard', href: '/dashboard' });
 
   // Parse pathname and create breadcrumbs
-  const segments = pathname.split("/").filter(Boolean)
+  const segments = pathname.split('/').filter(Boolean);
 
   // Skip if we're already on dashboard
-  if (segments.length === 1 && segments[0] === "dashboard") {
-    return breadcrumbs
+  if (segments.length === 1 && segments[0] === 'dashboard') {
+    return breadcrumbs;
   }
 
   // Add segments to breadcrumbs
-  let currentPath = ""
+  let currentPath = '';
   for (const segment of segments) {
-    if (segment === "dashboard") continue
+    if (segment === 'dashboard') continue;
 
-    currentPath += `/${segment}`
+    currentPath += `/${segment}`;
 
     // Create readable label
     const label = segment
-      .split("-")
+      .split('-')
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ")
+      .join(' ');
 
-    breadcrumbs.push({ label, href: currentPath })
+    breadcrumbs.push({ label, href: currentPath });
   }
 
-  return breadcrumbs
+  return breadcrumbs;
 }
 
 export function AppHeader() {
-  const pathname = usePathname()
-  const breadcrumbs = useMemo(() => generateBreadcrumbs(pathname), [pathname])
+  const pathname = usePathname();
+  const breadcrumbs = useMemo(() => generateBreadcrumbs(pathname), [pathname]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -90,10 +90,7 @@ export function AppHeader() {
         <div className="hidden md:flex">
           <div className="relative w-64">
             <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search devices, flows, alerts..."
-              className="pl-8 h-9"
-            />
+            <Input placeholder="Search devices, flows, alerts..." className="pl-8 h-9" />
           </div>
         </div>
 
@@ -113,5 +110,5 @@ export function AppHeader() {
         </div>
       </div>
     </header>
-  )
+  );
 }

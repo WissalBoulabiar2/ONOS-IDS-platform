@@ -192,7 +192,7 @@ class SSOService {
       const jwksUri = response.data.jwks_uri;
 
       const jwksResponse = await axios.get(jwksUri);
-      const key = jwksResponse.data.keys.find(k => k.kid === keyId);
+      const key = jwksResponse.data.keys.find((k) => k.kid === keyId);
 
       return key;
     } catch (error) {

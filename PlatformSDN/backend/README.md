@@ -22,6 +22,7 @@ cp backend/.env.example backend/.env
 ```
 
 Éditez `backend/.env` avec vos paramètres ONOS:
+
 ```env
 ONOS_HOST=localhost
 ONOS_PORT=8181
@@ -33,18 +34,21 @@ PORT=5000
 ### 3. Lancer le Backend
 
 **Option A: Directement avec Node.js**
+
 ```bash
 cd PlatformSDN
 node backend/server.js
 ```
 
 **Option B: Avec le script shell** (Linux/Mac)
+
 ```bash
 chmod +x run-backend.sh
 ./run-backend.sh
 ```
 
 **Option C: En développement avec nodemon**
+
 ```bash
 npm install -g nodemon
 nodemon backend/server.js
@@ -57,10 +61,13 @@ Le serveur démarre sur **http://localhost:5000**
 ## 📡 API Endpoints
 
 ### Health Check
+
 ```
 GET /api/health
 ```
+
 Response:
+
 ```json
 {
   "status": "OK",
@@ -69,10 +76,13 @@ Response:
 ```
 
 ### Récupérer les Équipements (Devices)
+
 ```
 GET /api/devices
 ```
+
 Response:
+
 ```json
 {
   "total": 5,
@@ -90,10 +100,13 @@ Response:
 ```
 
 ### Récupérer la Topologie
+
 ```
 GET /api/topology
 ```
+
 Response:
+
 ```json
 {
   "nodes": [...],
@@ -103,10 +116,13 @@ Response:
 ```
 
 ### Récupérer les Flows (Règles)
+
 ```
 GET /api/flows
 ```
+
 Response:
+
 ```json
 {
   "total": 15,
@@ -122,6 +138,7 @@ Response:
 ```
 
 ### Créer une Nouvelle Règle de Flux
+
 ```
 POST /api/flows/:deviceId
 Body:
@@ -137,10 +154,13 @@ Body:
 ```
 
 ### Récupérer les Ports d'un Équipement
+
 ```
 GET /api/devices/:deviceId/ports
 ```
+
 Response:
+
 ```json
 {
   "deviceId": "of:0000000000000001",
@@ -165,10 +185,10 @@ Le frontend appelle les endpoints du backend via la variable d'environnement `NE
 
 ```typescript
 // Dans les services frontend
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 // Exemple: Récupérer les devices
-const response = await fetch(`${API_URL}/devices`)
+const response = await fetch(`${API_URL}/devices`);
 ```
 
 ---
@@ -176,11 +196,13 @@ const response = await fetch(`${API_URL}/devices`)
 ## ⚠️ Troubleshooting
 
 ### Erreur: "Cannot connect to ONOS"
+
 - ✅ Vérifiez que ONOS tourne sur `localhost:8181`
 - ✅ Vérifiez les identifiants ONOS (défaut: karaf/karaf)
 - ✅ Vérifiez que le firewall n'en bloque pas l'accès
 
 ### Erreur: "Port 5000 already in use"
+
 ```bash
 # Sur Windows
 netstat -ano | findstr :5000
@@ -192,6 +214,7 @@ kill -9 <PID>
 ```
 
 ### Le backend ne démarre pas
+
 ```bash
 # Vérifiez que les dépendances sont installées
 npm install --legacy-peer-deps

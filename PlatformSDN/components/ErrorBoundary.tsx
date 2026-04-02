@@ -60,13 +60,7 @@ export class ErrorBoundary extends Component<Props, State> {
 }
 
 // Error state component
-export function ErrorState({
-  error,
-  retry,
-}: {
-  error: Error | null;
-  retry: () => void;
-}) {
+export function ErrorState({ error, retry }: { error: Error | null; retry: () => void }) {
   return (
     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
       <h3 className="font-semibold text-red-800 mb-2">Error loading data</h3>

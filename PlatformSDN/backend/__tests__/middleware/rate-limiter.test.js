@@ -4,12 +4,13 @@ const { createMockRequest, createMockResponse } = require('../utils/test-helpers
 
 describe('AdvancedRateLimiter', () => {
   beforeEach(() => {
+    jest.restoreAllMocks();
     jest.clearAllMocks();
     rateLimiter.limits.clear();
   });
 
   describe('middleware', () => {
-    it('should allow requests within limit', (done) => {
+    it('should allow requests within limit', () => {
       const middleware = rateLimiter.middleware();
       const req = createMockRequest();
       const res = createMockResponse();
@@ -19,12 +20,11 @@ describe('AdvancedRateLimiter', () => {
 
       expect(next).toHaveBeenCalled();
       expect(res.setHeader).toHaveBeenCalledWith('X-RateLimit-Limit', expect.any(Number));
-      done();
     });
 
-    it('should reject requests exceeding limit', (done) => {
+    it('should reject requests exceeding limit', () => {
       const middleware = rateLimiter.middleware();
-      const req = createMockRequest();
+      const req = createMockRequest({ path: '/api/auth/login', originalUrl: '/api/auth/login' });
       const res = createMockResponse();
 
       // Simulate max requests for login endpoint
@@ -43,11 +43,9 @@ describe('AdvancedRateLimiter', () => {
           error: 'Too many requests',
         })
       );
-
-      done();
     });
 
-    it('should set rate limit headers', (done) => {
+    it('should set rate limit headers', () => {
       const middleware = rateLimiter.middleware();
       const req = createMockRequest();
       const res = createMockResponse();
@@ -57,8 +55,6 @@ describe('AdvancedRateLimiter', () => {
       expect(res.setHeader).toHaveBeenCalledWith('X-RateLimit-Limit', expect.any(Number));
       expect(res.setHeader).toHaveBeenCalledWith('X-RateLimit-Remaining', expect.any(Number));
       expect(res.setHeader).toHaveBeenCalledWith('X-RateLimit-Reset', expect.any(String));
-
-      done();
     });
   });
 

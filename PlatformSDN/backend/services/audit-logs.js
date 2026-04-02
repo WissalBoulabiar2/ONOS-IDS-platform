@@ -21,7 +21,16 @@ class AuditService {
         `INSERT INTO audit_logs (user_id, action, resource, resource_id, status, details, ip_address, user_agent, created_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
          RETURNING *`,
-        [userId, action, resource, resourceId, status, JSON.stringify(details), ipAddress, userAgent]
+        [
+          userId,
+          action,
+          resource,
+          resourceId,
+          status,
+          JSON.stringify(details),
+          ipAddress,
+          userAgent,
+        ]
       );
 
       console.log(`[Audit] ${action} on ${resource}/${resourceId} by user ${userId}`);
@@ -141,7 +150,7 @@ class AuditService {
       const result = await db.query(
         `DELETE FROM audit_logs
          WHERE created_at < NOW() - INTERVAL '${daysOld} days'
-         RETURNING id`,
+         RETURNING id`
       );
 
       console.log('[Audit] Archived', result.rowCount, 'old logs');

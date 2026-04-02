@@ -72,10 +72,7 @@ async function updateUser(id, userData) {
 
 async function deleteUser(id) {
   try {
-    const result = await db.query(
-      'DELETE FROM users WHERE id = $1 RETURNING id',
-      [id]
-    );
+    const result = await db.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
 
     if (result.rows.length === 0) {
       throw new Error('User not found');
@@ -102,10 +99,10 @@ async function changePassword(id, oldPassword, newPassword) {
     }
 
     const newHash = await auth.hashPassword(newPassword);
-    await db.query(
-      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
-      [newHash, id]
-    );
+    await db.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [
+      newHash,
+      id,
+    ]);
 
     return { success: true };
   } catch (error) {

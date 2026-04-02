@@ -52,7 +52,13 @@ describe('AuthController', () => {
     });
 
     it('should return token and user if credentials are valid', async () => {
-      const user = { id: 1, username: 'user', email: 'user@test.com', role: 'user', full_name: 'Test User' };
+      const user = {
+        id: 1,
+        username: 'user',
+        email: 'user@test.com',
+        role: 'user',
+        full_name: 'Test User',
+      };
       req.body = { username: 'user', password: 'correct' };
       authService.authenticate.mockResolvedValue(user);
       authService.generateToken.mockReturnValue('token123');
@@ -93,8 +99,19 @@ describe('AuthController', () => {
     });
 
     it('should create user and return token', async () => {
-      const newUser = { id: 2, username: 'newuser', email: 'new@test.com', role: 'user', full_name: 'New User' };
-      req.body = { username: 'newuser', email: 'new@test.com', password: 'pass', fullName: 'New User' };
+      const newUser = {
+        id: 2,
+        username: 'newuser',
+        email: 'new@test.com',
+        role: 'user',
+        full_name: 'New User',
+      };
+      req.body = {
+        username: 'newuser',
+        email: 'new@test.com',
+        password: 'pass',
+        fullName: 'New User',
+      };
       db.query
         .mockResolvedValueOnce({ rows: [] }) // Check existing user
         .mockResolvedValueOnce({ rows: [newUser] }); // Create user
@@ -126,7 +143,13 @@ describe('AuthController', () => {
     });
 
     it('should return current user if authenticated', async () => {
-      req.user = { id: 1, username: 'user', email: 'user@test.com', role: 'user', full_name: 'Test User' };
+      req.user = {
+        id: 1,
+        username: 'user',
+        email: 'user@test.com',
+        role: 'user',
+        full_name: 'Test User',
+      };
 
       await authController.getCurrentUser(req, res);
 

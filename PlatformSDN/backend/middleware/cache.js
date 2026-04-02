@@ -80,7 +80,7 @@ class CacheMiddleware {
     return {
       hits: this.cacheHits,
       misses: this.cacheMisses,
-      hitRate: total > 0 ? (this.cacheHits / total * 100).toFixed(2) + '%' : '0%',
+      hitRate: total > 0 ? ((this.cacheHits / total) * 100).toFixed(2) + '%' : '0%',
       size: this.cache.size,
     };
   }

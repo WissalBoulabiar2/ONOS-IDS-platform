@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -14,23 +14,23 @@
   /* SDN Primary Colors */
   --primary: oklch(0.55 0.15 262); /* Cyan #06b6d4 */
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.27 0 0);   /* Slate #1e293b */
+  --secondary: oklch(0.27 0 0); /* Slate #1e293b */
   --secondary-foreground: oklch(1 0 0);
 
   /* Status Colors */
   --success: oklch(0.65 0.13 142); /* Emerald #10b981 */
   --success-foreground: oklch(1 0 0);
-  --warning: oklch(0.76 0.16 69);  /* Amber #f59e0b */
+  --warning: oklch(0.76 0.16 69); /* Amber #f59e0b */
   --warning-foreground: oklch(0.145 0 0);
-  --critical: oklch(0.55 0.15 27);  /* Rose #ef4444 */
+  --critical: oklch(0.55 0.15 27); /* Rose #ef4444 */
   --critical-foreground: oklch(1 0 0);
-  --info: oklch(0.60 0.16 248);    /* Sky #0ea5e9 */
+  --info: oklch(0.6 0.16 248); /* Sky #0ea5e9 */
   --info-foreground: oklch(1 0 0);
 
   /* UI Elements */
   --muted: oklch(0.95 0 0);
   --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.55 0.15 262);  /* Cyan accent */
+  --accent: oklch(0.55 0.15 262); /* Cyan accent */
   --accent-foreground: oklch(1 0 0);
   --destructive: oklch(0.55 0.15 27);
   --destructive-foreground: oklch(1 0 0);
@@ -41,9 +41,9 @@
   /* Charts */
   --chart-1: oklch(0.55 0.15 262); /* Cyan */
   --chart-2: oklch(0.65 0.13 142); /* Emerald */
-  --chart-3: oklch(0.76 0.16 69);  /* Amber */
-  --chart-4: oklch(0.55 0.15 27);  /* Rose */
-  --chart-5: oklch(0.60 0.16 248); /* Sky */
+  --chart-3: oklch(0.76 0.16 69); /* Amber */
+  --chart-4: oklch(0.55 0.15 27); /* Rose */
+  --chart-5: oklch(0.6 0.16 248); /* Sky */
 
   /* Spacing */
   --radius: 0.625rem;
@@ -59,12 +59,12 @@
   --sidebar-ring: oklch(0.55 0.15 262);
 
   /* Typography */
-  --font-open-sans: "Open Sans", sans-serif;
-  --font-montserrat: "Montserrat", serif;
+  --font-open-sans: 'Open Sans', sans-serif;
+  --font-montserrat: 'Montserrat', serif;
 }
 
 .dark {
-  --background: oklch(0.14 0 0);  /* Dark bg */
+  --background: oklch(0.14 0 0); /* Dark bg */
   --foreground: oklch(0.98 0 0);
   --card: oklch(0.18 0 0);
   --card-foreground: oklch(0.98 0 0);
@@ -74,36 +74,36 @@
   /* SDN Primary Colors - Dark mode adjusted */
   --primary: oklch(0.58 0.18 262); /* Bright Cyan */
   --primary-foreground: oklch(0.14 0 0);
-  --secondary: oklch(0.32 0 0);   /* Light Slate */
+  --secondary: oklch(0.32 0 0); /* Light Slate */
   --secondary-foreground: oklch(0.98 0 0);
 
   /* Status Colors - Dark mode */
   --success: oklch(0.62 0.17 142); /* Bright Emerald */
   --success-foreground: oklch(0.14 0 0);
-  --warning: oklch(0.72 0.18 69);  /* Bright Amber */
+  --warning: oklch(0.72 0.18 69); /* Bright Amber */
   --warning-foreground: oklch(0.14 0 0);
-  --critical: oklch(0.58 0.20 27);  /* Bright Rose */
+  --critical: oklch(0.58 0.2 27); /* Bright Rose */
   --critical-foreground: oklch(0.98 0 0);
-  --info: oklch(0.60 0.20 248);    /* Bright Sky */
+  --info: oklch(0.6 0.2 248); /* Bright Sky */
   --info-foreground: oklch(0.14 0 0);
 
   /* UI Elements - Dark */
   --muted: oklch(0.32 0 0);
-  --muted-foreground: oklch(0.70 0 0);
+  --muted-foreground: oklch(0.7 0 0);
   --accent: oklch(0.58 0.18 262);
   --accent-foreground: oklch(0.14 0 0);
-  --destructive: oklch(0.58 0.20 27);
+  --destructive: oklch(0.58 0.2 27);
   --destructive-foreground: oklch(0.98 0 0);
   --border: oklch(0.26 0 0);
-  --input: oklch(0.20 0 0);
+  --input: oklch(0.2 0 0);
   --ring: oklch(0.58 0.18 262);
 
   /* Charts - Dark */
   --chart-1: oklch(0.58 0.18 262); /* Cyan */
   --chart-2: oklch(0.62 0.17 142); /* Emerald */
-  --chart-3: oklch(0.72 0.18 69);  /* Amber */
-  --chart-4: oklch(0.58 0.20 27);  /* Rose */
-  --chart-5: oklch(0.60 0.20 248); /* Sky */
+  --chart-3: oklch(0.72 0.18 69); /* Amber */
+  --chart-4: oklch(0.58 0.2 27); /* Rose */
+  --chart-5: oklch(0.6 0.2 248); /* Sky */
 
   /* Sidebar - Dark */
   --sidebar: oklch(0.18 0 0);

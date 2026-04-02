@@ -11,6 +11,7 @@ The project can run in two modes:
    The backend can also store synchronized devices, ports, topology, flows, and history in PostgreSQL.
 
 The backend is now resilient:
+
 - if PostgreSQL is unavailable, live ONOS routes still work
 - if PostgreSQL is available, dashboard and metrics routes can use cached data
 
@@ -67,6 +68,7 @@ SYNC_INTERVAL_MS=5000
 ```
 
 Notes:
+
 - Replace `ONOS_HOST` with your VM IP if needed.
 - Keep `ENABLE_AUTO_SYNC=false` if you only want live ONOS access without database sync.
 - Enable auto-sync only after PostgreSQL is initialized.
@@ -80,10 +82,12 @@ docker compose up -d
 ```
 
 This starts:
+
 - PostgreSQL on `localhost:5432`
 - pgAdmin on `http://localhost:5050`
 
 Default pgAdmin credentials:
+
 - Email: `admin@sdn.local`
 - Password: `admin123`
 
@@ -98,6 +102,7 @@ npm run backend
 ```
 
 Useful endpoints:
+
 - `http://localhost:5000/api/health`
 - `http://localhost:5000/api/devices`
 - `http://localhost:5000/api/topology`
@@ -113,6 +118,7 @@ npm run dev
 ```
 
 Main routes:
+
 - `http://localhost:3000/`
 - `http://localhost:3000/dashboard`
 - `http://localhost:3000/devices`
@@ -137,6 +143,7 @@ This is expected now. The backend should stay up and fall back to ONOS live data
 ### `/api/health` says `DEGRADED`
 
 This means:
+
 - ONOS is reachable
 - PostgreSQL is not ready while auto-sync is enabled
 

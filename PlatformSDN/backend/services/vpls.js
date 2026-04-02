@@ -127,10 +127,7 @@ class VPLSService {
     try {
       const response = await vplsClient.delete(`/networks/${networkName}`);
 
-      await db.query(
-        'UPDATE vpls_networks SET deleted_at = NOW() WHERE name = $1',
-        [networkName]
-      );
+      await db.query('UPDATE vpls_networks SET deleted_at = NOW() WHERE name = $1', [networkName]);
 
       cache.delete('vpls:networks');
       cache.delete(`vpls:network:${networkName}`);
