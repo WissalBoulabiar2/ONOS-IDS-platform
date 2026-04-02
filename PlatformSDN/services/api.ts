@@ -327,6 +327,95 @@ export interface VplsResponse {
   vpls: VplsServiceItem[]
 }
 
+// NEW: Cluster Health Types
+export interface ClusterHealthResponse {
+  source: "onos"
+  timestamp: string
+  cluster: {
+    totalNodes: number
+    onlineNodes: number
+    offlineNodes: number
+    masterNode: string | null
+    nodes: Array<{
+      id: string
+      ip: string
+      status: string
+      lastUpdated: string | null
+    }>
+  }
+}
+
+// NEW: ONOS Applications Types
+export interface ApplicationsResponse {
+  source: "onos"
+  timestamp: string
+  summary: {
+    total: number
+    active: number
+    inactive: number
+  }
+  applications: Array<{
+    id: string
+    name: string
+    state: string
+    category: string
+    version: string
+  }>
+}
+
+// NEW: ONOS Intents Types
+export interface IntentsResponse {
+  source: "onos"
+  timestamp: string
+  summary: {
+    total: number
+    installed: number
+    failed: number
+    other: number
+  }
+  intents: Array<{
+    id: string
+    type: string
+    state: string
+    appId: string
+  }>
+}
+
+// NEW: Network Performance Types
+export interface NetworkPerformanceResponse {
+  source: "onos"
+  timestamp: string
+  summary: {
+    totalRxBytes: number
+    totalTxBytes: number
+    totalRxPackets: number
+    totalTxPackets: number
+    linkCount: number
+  }
+  throughput: {
+    rxBytesPerSec: number
+    txBytesPerSec: number
+  }
+  utilization: {
+    average: number
+    min: number
+    max: number
+  }
+}
+
+// NEW: Network Heatmap Types
+export interface NetworkHeatmapResponse {
+  source: "onos"
+  timestamp: string
+  topLinks: Array<{
+    id: string
+    link: string
+    throughput: number
+    utilization: number
+  }>
+  totalLinks: number
+}
+
 function getAuthToken() {
   return Cookies.get(AUTH_TOKEN_COOKIE)
 }
@@ -568,6 +657,68 @@ export const sdnApi = {
         method: "DELETE",
       }
     )
+  },
+
+  // NEW: Cluster Health
+  async getClusterHealth(): Promise<ClusterHealthResponse> {
+    return requestJson<ClusterHealthResponse>("/cluster/health").catch(() => ({
+      source: "onos" as const,
+      timestamp: new Date().toISOString(),
+      cluster: {
+        totalNodes: 0,
+        onlineNodes: 0,
+        offlineNodes: 0,
+        masterNode: null,
+        nodes: [],
+      },
+    }))
+  },
+
+  // NEW: ONOS Applications
+  async getApplications(): Promise<ApplicationsResponse> {
+    return requestJson<ApplicationsResponse>("/onos/applications").catch(() => ({
+      source: "onos" as const,
+      timestamp: new Date().toISOString(),
+      summary: { total: 0, active: 0, inactive: 0 },
+      applications: [],
+    }))
+  },
+
+  // NEW: ONOS Intents
+  async getIntents(): Promise<IntentsResponse> {
+    return requestJson<IntentsResponse>("/onos/intents").catch(() => ({
+      source: "onos" as const,
+      timestamp: new Date().toISOString(),
+      summary: { total: 0, installed: 0, failed: 0, other: 0 },
+      intents: [],
+    }))
+  },
+
+  // NEW: Network Performance
+  async getNetworkPerformance(): Promise<NetworkPerformanceResponse> {
+    return requestJson<NetworkPerformanceResponse>("/network/performance").catch(() => ({
+      source: "onos" as const,
+      timestamp: new Date().toISOString(),
+      summary: {
+        totalRxBytes: 0,
+        totalTxBytes: 0,
+        totalRxPackets: 0,
+        totalTxPackets: 0,
+        linkCount: 0,
+      },
+      throughput: { rxBytesPerSec: 0, txBytesPerSec: 0 },
+      utilization: { average: 0, min: 0, max: 0 },
+    }))
+  },
+
+  // NEW: Network Heatmap
+  async getNetworkHeatmap(): Promise<NetworkHeatmapResponse> {
+    return requestJson<NetworkHeatmapResponse>("/network/heatmap").catch(() => ({
+      source: "onos" as const,
+      timestamp: new Date().toISOString(),
+      topLinks: [],
+      totalLinks: 0,
+    }))
   },
 }
 

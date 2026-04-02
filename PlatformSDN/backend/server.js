@@ -2952,6 +2952,216 @@ app.get("/api/metrics/port-history/:deviceId/:port", async (req, res) => {
   }
 })
 
+// ============================================
+// NEW: Cluster Health Endpoint
+// ============================================
+app.get("/api/cluster/health", async (_req, res) => {
+  try {
+    const clusterInfo = await axios.get(`${ONOS_URL}/cluster`, {
+      auth: { username: ONOS_USER, password: ONOS_PASSWORD },
+    })
+
+    const nodes = clusterInfo.data.nodes || []
+    const onlineNodes = nodes.filter((n) => n.status === "ACTIVE").length
+
+    res.json({
+      source: "onos",
+      timestamp: new Date().toISOString(),
+      cluster: {
+        totalNodes: nodes.length,
+        onlineNodes,
+        offlineNodes: nodes.length - onlineNodes,
+        masterNode: clusterInfo.data.onos || null,
+        nodes: nodes.map((n) => ({
+          id: n.id,
+          ip: n.ip,
+          status: n.status,
+          lastUpdated: n.lastUpdated,
+        })),
+      },
+    })
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to fetch cluster health",
+      message: error.message,
+    })
+  }
+})
+
+// ============================================
+// NEW: ONOS Applications Endpoint
+// ============================================
+app.get("/api/onos/applications", async (_req, res) => {
+  try {
+    const appsInfo = await axios.get(`${ONOS_URL}/applications`, {
+      auth: { username: ONOS_USER, password: ONOS_PASSWORD },
+    })
+
+    const apps = appsInfo.data.applications || []
+    const activeApps = apps.filter((a) => a.state === "ACTIVE")
+
+    res.json({
+      source: "onos",
+      timestamp: new Date().toISOString(),
+      summary: {
+        total: apps.length,
+        active: activeApps.length,
+        inactive: apps.length - activeApps.length,
+      },
+      applications: apps.map((a) => ({
+        id: a.id,
+        name: a.name || a.id,
+        state: a.state,
+        category: a.category || "other",
+        version: a.version || "unknown",
+      })),
+    })
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to fetch applications",
+      message: error.message,
+    })
+  }
+})
+
+// ============================================
+// NEW: ONOS Intents Endpoint
+// ============================================
+app.get("/api/onos/intents", async (_req, res) => {
+  try {
+    const intentsInfo = await axios.get(`${ONOS_URL}/intents`, {
+      auth: { username: ONOS_USER, password: ONOS_PASSWORD },
+    })
+
+    const intents = intentsInfo.data.intents || []
+    const installedIntents = intents.filter((i) => i.state === "INSTALLED")
+    const failedIntents = intents.filter((i) => i.state === "FAILED")
+
+    res.json({
+      source: "onos",
+      timestamp: new Date().toISOString(),
+      summary: {
+        total: intents.length,
+        installed: installedIntents.length,
+        failed: failedIntents.length,
+        other: intents.length - installedIntents.length - failedIntents.length,
+      },
+      intents: intents.slice(0, 20).map((i) => ({
+        id: i.id,
+        type: i.type || "point-to-point",
+        state: i.state,
+        appId: i.appId,
+      })),
+    })
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to fetch intents",
+      message: error.message,
+    })
+  }
+})
+
+// ============================================
+// NEW: Network Performance Endpoint
+// ============================================
+app.get("/api/network/performance", async (_req, res) => {
+  try {
+    const statsInfo = await axios.get(`${ONOS_URL}/statistics/ports`, {
+      auth: { username: ONOS_USER, password: ONOS_PASSWORD },
+    })
+
+    const statsList = statsInfo.data.statistics || []
+
+    // Calculate metrics
+    let totalRxBytes = 0
+    let totalTxBytes = 0
+    let totalRxPackets = 0
+    let totalTxPackets = 0
+    let linkCount = 0
+
+    statsList.forEach((stat) => {
+      totalRxBytes += parseInt(stat.bytes_rcvd) || 0
+      totalTxBytes += parseInt(stat.bytes_sent) || 0
+      totalRxPackets += parseInt(stat.packets_rcvd) || 0
+      totalTxPackets += parseInt(stat.packets_sent) || 0
+      if (stat.port_speed > 0) linkCount++
+    })
+
+    const avgLinkUsage = linkCount > 0 ? ((totalRxBytes + totalTxBytes) / (linkCount * 1e9)) * 100 : 0
+
+    res.json({
+      source: "onos",
+      timestamp: new Date().toISOString(),
+      summary: {
+        totalRxBytes,
+        totalTxBytes,
+        totalRxPackets,
+        totalTxPackets,
+        linkCount,
+      },
+      throughput: {
+        rxBytesPerSec: totalRxBytes / 15, // approximate per 15s
+        txBytesPerSec: totalTxBytes / 15,
+      },
+      utilization: {
+        average: Math.min(100, Math.round(avgLinkUsage)),
+        min: 0,
+        max: 100,
+      },
+    })
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to fetch network performance",
+      message: error.message,
+    })
+  }
+})
+
+// ============================================
+// NEW: Network Traffic Heatmap Endpoint
+// ============================================
+app.get("/api/network/heatmap", async (_req, res) => {
+  try {
+    const statsInfo = await axios.get(`${ONOS_URL}/statistics/ports`, {
+      auth: { username: ONOS_USER, password: ONOS_PASSWORD },
+    })
+
+    const statsList = statsInfo.data.statistics || []
+
+    // Sort by throughput and get top 10
+    const linkStats = statsList
+      .map((stat) => ({
+        deviceId: stat.device_id,
+        port: stat.port_id,
+        speed: stat.port_speed || 0,
+        rxBytes: parseInt(stat.bytes_rcvd) || 0,
+        txBytes: parseInt(stat.bytes_sent) || 0,
+        throughput: (parseInt(stat.bytes_rcvd) || 0) + (parseInt(stat.bytes_sent) || 0),
+      }))
+      .sort((a, b) => b.throughput - a.throughput)
+      .slice(0, 10)
+
+    const topLinks = linkStats.map((link) => ({
+      id: `${link.deviceId}:${link.port}`,
+      link: `${link.deviceId.slice(-4)}:${link.port}`,
+      throughput: link.throughput,
+      utilization: link.speed > 0 ? Math.round((link.throughput / (link.speed * 1e6)) * 100) : 0,
+    }))
+
+    res.json({
+      source: "onos",
+      timestamp: new Date().toISOString(),
+      topLinks,
+      totalLinks: statsList.length,
+    })
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to fetch network heatmap",
+      message: error.message,
+    })
+  }
+})
+
 app.use((error, _req, res, _next) => {
   console.error("[API] Unhandled error:", error)
   res.status(error.status || 500).json({

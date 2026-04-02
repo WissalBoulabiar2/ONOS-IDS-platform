@@ -23,10 +23,15 @@ import { useExportPDF } from "@/hooks/useExportPDF"
 import {
   sdnApi,
   type ApiAlert,
+  type ApplicationsResponse,
+  type ClusterHealthResponse,
   type DashboardOverviewResponse,
   type DashboardStatsResponse,
   type DeviceMetricsResponse,
+  type IntentsResponse,
   type LinkLoadResponse,
+  type NetworkHeatmapResponse,
+  type NetworkPerformanceResponse,
 } from "@/services/api"
 import {
   Activity,
@@ -41,6 +46,10 @@ import {
   Server,
   TrendingUp,
   Users,
+  Zap,
+  BarChart3,
+  Flame,
+  Clock,
 } from "lucide-react"
 
 const COLORS = ["#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"]
@@ -52,6 +61,14 @@ export default function DashboardPage() {
   const [overview, setOverview] = useState<DashboardOverviewResponse | null>(null)
   const [linkLoad, setLinkLoad] = useState<LinkLoadResponse["links"]>([])
   const [recentAlerts, setRecentAlerts] = useState<ApiAlert[]>([])
+
+  // NEW: Advanced metrics
+  const [clusterHealth, setClusterHealth] = useState<ClusterHealthResponse | null>(null)
+  const [applications, setApplications] = useState<ApplicationsResponse | null>(null)
+  const [intents, setIntents] = useState<IntentsResponse | null>(null)
+  const [performance, setPerformance] = useState<NetworkPerformanceResponse | null>(null)
+  const [heatmap, setHeatmap] = useState<NetworkHeatmapResponse | null>(null)
+
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -78,12 +95,18 @@ export default function DashboardPage() {
 
       setError(null)
 
-      const [statsData, metricsData, overviewData, alertsData, linkLoadData] = await Promise.all([
+      const [statsData, metricsData, overviewData, alertsData, linkLoadData, clusterData, appsData, intentsData, perfData, heatmapData] = await Promise.all([
         sdnApi.getDashboardStats(),
         sdnApi.getDeviceMetrics(),
         sdnApi.getDashboardOverview(),
-        sdnApi.getAlerts({ status: "all", limit: 5 }),
+        sdnApi.getAlerts({ status: "all", limit: 10 }),
         sdnApi.getLinkLoad().catch(() => ({ source: "onos" as const, total: 0, links: [] })),
+        // NEW CALLS
+        sdnApi.getClusterHealth(),
+        sdnApi.getApplications(),
+        sdnApi.getIntents(),
+        sdnApi.getNetworkPerformance(),
+        sdnApi.getNetworkHeatmap(),
       ])
 
       setStatsResponse(statsData)
@@ -91,6 +114,13 @@ export default function DashboardPage() {
       setOverview(overviewData)
       setRecentAlerts(alertsData.alerts)
       setLinkLoad(linkLoadData.links)
+
+      // NEW: Set advanced metrics
+      setClusterHealth(clusterData)
+      setApplications(appsData)
+      setIntents(intentsData)
+      setPerformance(perfData)
+      setHeatmap(heatmapData)
 
       const sources = new Set([statsData.source, metricsData.source, alertsData.source, linkLoadData.source])
       setDataSource(sources.size === 1 ? (Array.from(sources)[0] as "database" | "onos") : "mixed")
@@ -818,6 +848,220 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+        </section>
+
+        {/* NEW: Advanced Metrics Section */}
+        <section className="mb-8 grid grid-cols-1 gap-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold flex gap-2 items-center">
+              <Zap className="h-6 w-6 text-cyan-500" /> Advanced Metrics
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            {/* Cluster Health Card */}
+            <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Server className="h-5 w-5 text-emerald-500" />
+                  Cluster Health
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {clusterHealth ? (
+                  <>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Total Nodes</p>
+                        <p className="text-2xl font-bold">{clusterHealth.cluster.totalNodes}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Online</p>
+                        <p className="text-2xl font-bold text-emerald-500">{clusterHealth.cluster.onlineNodes}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Offline</p>
+                        <p className="text-2xl font-bold text-rose-500">{clusterHealth.cluster.offlineNodes}</p>
+                      </div>
+                    </div>
+                    {clusterHealth.cluster.masterNode && (
+                      <div className="rounded-lg bg-cyan-50 p-3 dark:bg-cyan-950/20">
+                        <p className="text-xs uppercase text-cyan-600 dark:text-cyan-400">Master Node</p>
+                        <p className="font-mono text-sm">{clusterHealth.cluster.masterNode}</p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">Loading...</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* ONOS Applications Card */}
+            <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AppWindow className="h-5 w-5 text-violet-500" />
+                  Applications
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {applications ? (
+                  <>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Total</p>
+                        <p className="text-2xl font-bold">{applications.summary.total}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Active</p>
+                        <p className="text-2xl font-bold text-emerald-500">{applications.summary.active}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Inactive</p>
+                        <p className="text-2xl font-bold text-amber-500">{applications.summary.inactive}</p>
+                      </div>
+                    </div>
+                    <div className="max-h-32 overflow-y-auto space-y-2">
+                      {applications.applications.slice(0, 5).map((app) => (
+                        <div key={app.id} className="flex items-center justify-between text-xs">
+                          <span className="truncate">{app.name}</span>
+                          <Badge className={app.state === "ACTIVE" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"}>
+                            {app.state}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">Loading...</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Intents Card */}
+            <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Network className="h-5 w-5 text-sky-500" />
+                  Intents
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {intents ? (
+                  <>
+                    <div className="grid grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Total</p>
+                        <p className="text-xl font-bold">{intents.summary.total}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">√</p>
+                        <p className="text-xl font-bold text-emerald-500">{intents.summary.installed}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">✗</p>
+                        <p className="text-xl font-bold text-rose-500">{intents.summary.failed}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Other</p>
+                        <p className="text-xl font-bold text-amber-500">{intents.summary.other}</p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">Loading...</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Network Performance Card */}
+            <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-blue-500" />
+                  Network Performance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {performance ? (
+                  <>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Avg Utilization</span>
+                          <span className="font-bold">{performance.utilization.average}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+                          <div className="bg-cyan-500 h-2 rounded-full" style={{ width: `${performance.utilization.average}%` }} />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400">RX Throughput</p>
+                          <p className="font-bold text-emerald-500">{Math.round(performance.throughput.rxBytesPerSec / 1024 / 1024)} MB/s</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 dark:text-gray-400">TX Throughput</p>
+                          <p className="font-bold text-sky-500">{Math.round(performance.throughput.txBytesPerSec / 1024 / 1024)} MB/s</p>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Active Links: {performance.summary.linkCount}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500">Loading...</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Traffic Heatmap Card - Full Width */}
+          {heatmap && (
+            <Card className="border-gray-200 bg-white/80 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Flame className="h-5 w-5 text-orange-500" />
+                  Top 10 Traffic Links (Heatmap)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {heatmap.topLinks.length > 0 ? (
+                    heatmap.topLinks.map((link, idx) => (
+                      <div key={link.id} className="flex items-center gap-3">
+                        <div className="w-8 text-center">
+                          <span className="text-xs font-bold text-gray-500">#{idx + 1}</span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex justify-between mb-1">
+                            <span className="text-sm font-mono">{link.link}</span>
+                            <span className="text-xs text-gray-500">{link.utilization}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
+                            <div
+                              className={`h-2 rounded-full transition-all ${
+                                link.utilization > 80
+                                  ? "bg-rose-500"
+                                  : link.utilization > 50
+                                    ? "bg-amber-500"
+                                    : "bg-emerald-500"
+                              }`}
+                              style={{ width: `${Math.min(link.utilization, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500">No traffic data available</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </section>
 
         <section className="grid grid-cols-1 gap-6">

@@ -12,7 +12,7 @@ if (-not (Test-Path (Join-Path $root ".env.local"))) {
   Copy-Item (Join-Path $root ".env.local.example") (Join-Path $root ".env.local")
 }
 
-foreach ($port in 3000, 5000) {
+foreach ($port in 3000, 3001, 5000) {
   $connections = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
   foreach ($connection in $connections) {
     Stop-Process -Id $connection.OwningProcess -Force -ErrorAction SilentlyContinue
