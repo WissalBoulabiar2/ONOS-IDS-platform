@@ -56,6 +56,19 @@ nodemon backend/server.js
 
 Le serveur démarre sur **http://localhost:5000**
 
+### 4. Identifiants de connexion
+
+Le login backend utilise l'utilisateur admin par défaut défini dans `backend/.env`:
+
+```env
+DEFAULT_ADMIN_EMAIL=admin@sdn.local
+DEFAULT_ADMIN_PASSWORD=<value from backend/.env>
+```
+
+Important:
+- si `DEFAULT_ADMIN_PASSWORD` a été modifié dans `backend/.env`, `admin123` ne fonctionnera plus
+- le backend lit cette valeur au démarrage et crée l'admin par défaut avec ce mot de passe
+
 ---
 
 ## 📡 API Endpoints

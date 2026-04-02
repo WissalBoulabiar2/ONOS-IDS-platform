@@ -82,7 +82,7 @@ Regle de travail:
   - login backend JWT
   - verification du token cote backend
   - mots de passe hashes avec bcrypt
-  - admin par defaut `admin@sdn.local / admin123`
+  - admin par defaut charge depuis `backend/.env`
   - panneau admin users
 - redesign puis simplification de la page `login`
   - ecran plus sobre, plus simple et plus corporate
@@ -416,7 +416,7 @@ BCRYPT_SALT_ROUNDS=10
 DEFAULT_ADMIN_FULL_NAME=DNA Center Admin
 DEFAULT_ADMIN_USERNAME=admin
 DEFAULT_ADMIN_EMAIL=admin@sdn.local
-DEFAULT_ADMIN_PASSWORD=admin123
+DEFAULT_ADMIN_PASSWORD=<value from backend/.env>
 
 ENABLE_AUTO_SYNC=false
 SYNC_INTERVAL_MS=5000
