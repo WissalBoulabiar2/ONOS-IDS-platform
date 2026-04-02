@@ -114,6 +114,9 @@ export interface TopologyEdge {
   sourcePort?: string | null
   targetPort?: string | null
   kind?: "infrastructure" | "access"
+  utilization?: number | null
+  throughput?: number | null
+  loadState?: "nominal" | "warm" | "hot" | "unknown"
 }
 
 export interface User {

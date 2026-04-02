@@ -114,12 +114,30 @@ export interface TopologyEdge {
   sourcePort?: string | null
   targetPort?: string | null
   kind?: "infrastructure" | "access"
+  utilization?: number | null
+  throughput?: number | null
+  loadState?: "nominal" | "warm" | "hot" | "unknown"
 }
 
 export interface TopologyResponse {
   source: "database" | "onos"
   nodes: TopologyNode[]
   edges: TopologyEdge[]
+}
+
+export interface TopologyPathResponse {
+  source: "onos"
+  src: string
+  dst: string
+  total: number
+  paths: Array<{
+    id: string
+    cost: number | null
+    hops: number
+    summary: string
+    nodes: string[]
+    edgeRefs: string[]
+  }>
 }
 
 export interface ApiFlow {
@@ -417,7 +435,7 @@ export interface NetworkHeatmapResponse {
 }
 
 function getAuthToken() {
-  return Cookies.get(AUTH_TOKEN_COOKIE)
+  return Cookies.get(AUTH_TOKEN_COOKIE) ?? null
 }
 
 function isTokenExpired(token: string | null = null): boolean {
@@ -566,6 +584,11 @@ export const sdnApi = {
 
   async getTopology(source: TopologySourceMode = "onos") {
     return requestJson<TopologyResponse>(`/topology?source=${encodeURIComponent(source)}`)
+  },
+
+  async getPaths(src: string, dst: string): Promise<TopologyPathResponse> {
+    const params = new URLSearchParams({ src, dst })
+    return requestJson<TopologyPathResponse>(`/paths?${params.toString()}`)
   },
 
   async getFlows() {

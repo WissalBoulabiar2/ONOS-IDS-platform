@@ -887,6 +887,11 @@ async function fetchOnosLinksRaw() {
   return response.data.links || []
 }
 
+async function fetchOnosPathsRaw(src, dst) {
+  const response = await onos.get(`/paths/${encodeURIComponent(src)}/${encodeURIComponent(dst)}`)
+  return normalizeArrayPayload(response.data, ["paths"])
+}
+
 async function fetchOnosFlowsRaw() {
   const response = await onos.get("/flows")
   return response.data.flows || []
@@ -933,6 +938,10 @@ function buildTopologyEdgeLabel(sourcePort, targetPort, fallback = "") {
   return fallback || ""
 }
 
+function buildTopologyEdgeId(source, target, sourcePort, targetPort) {
+  return `${source}-${target}-${sourcePort || "na"}-${targetPort || "na"}`
+}
+
 function mapOnosDeviceToTopologyNode(device) {
   return {
     id: device.id,
@@ -951,7 +960,7 @@ function mapOnosLinkToTopologyEdge(link) {
   const targetPort = link?.dst?.port ? String(link.dst.port) : null
 
   return {
-    id: `${link.src.device}-${link.dst.device}-${sourcePort || "na"}-${targetPort || "na"}`,
+    id: buildTopologyEdgeId(link.src.device, link.dst.device, sourcePort, targetPort),
     source: link.src.device,
     target: link.dst.device,
     label: buildTopologyEdgeLabel(sourcePort, targetPort, link.type || ""),
@@ -995,7 +1004,7 @@ function mapOnosHostToTopologyEdges(host) {
     const targetPort = location?.port ? String(location.port) : null
 
     return {
-      id: `${host.id}-${location.elementId}-${targetPort || "na"}-${index}`,
+      id: `${buildTopologyEdgeId(host.id, location.elementId, null, targetPort)}-${index}`,
       source: host.id,
       target: location.elementId,
       label: buildTopologyEdgeLabel(null, targetPort, "host"),
@@ -2378,6 +2387,76 @@ app.get("/api/topology", async (req, res) => {
   }
 })
 
+app.get("/api/paths", async (req, res) => {
+  const src = String(req.query.src || "").trim()
+  const dst = String(req.query.dst || "").trim()
+
+  if (!src || !dst) {
+    return res.status(400).json({
+      error: "Missing path parameters",
+      message: "Both src and dst query parameters are required",
+    })
+  }
+
+  try {
+    const pathEntries = await fetchOnosPathsRaw(src, dst)
+
+    const paths = pathEntries.map((pathEntry, index) => {
+      const links = normalizeArrayPayload(pathEntry, ["links"])
+      const nodes = [src]
+      const edgeRefs = []
+
+      for (const link of links) {
+        const sourceDevice = String(link?.src?.device || link?.src?.elementId || "")
+        const targetDevice = String(link?.dst?.device || link?.dst?.elementId || "")
+        const sourcePort = link?.src?.port ? String(link.src.port) : null
+        const targetPort = link?.dst?.port ? String(link.dst.port) : null
+
+        if (sourceDevice && nodes[nodes.length - 1] !== sourceDevice) {
+          nodes.push(sourceDevice)
+        }
+
+        if (targetDevice && nodes[nodes.length - 1] !== targetDevice) {
+          nodes.push(targetDevice)
+        }
+
+        if (sourceDevice && targetDevice) {
+          edgeRefs.push(buildTopologyEdgeId(sourceDevice, targetDevice, sourcePort, targetPort))
+        }
+      }
+
+      if (nodes[nodes.length - 1] !== dst) {
+        nodes.push(dst)
+      }
+
+      const cost = toFiniteNumberOrNull(pathEntry?.cost)
+      const hops = links.length
+
+      return {
+        id: `path-${index + 1}`,
+        cost,
+        hops,
+        summary: cost !== null ? `${hops} hops - cost ${cost}` : `${hops} hops`,
+        nodes,
+        edgeRefs,
+      }
+    })
+
+    return res.json({
+      source: "onos",
+      src,
+      dst,
+      total: paths.length,
+      paths,
+    })
+  } catch (error) {
+    return res.status(500).json({
+      error: "Failed to compute ONOS paths",
+      message: error.message,
+    })
+  }
+})
+
 app.get("/api/flows", async (_req, res) => {
   const databaseConnected = await refreshDatabaseStatus()
 
@@ -2651,7 +2730,7 @@ app.get("/api/dashboard/link-load", async (_req, res) => {
   try {
     const entries = await fetchOnosLinkLoadRaw()
 
-    const normalized = entries.slice(0, 12).map((entry, index) => {
+    const normalized = entries.map((entry, index) => {
       const device = entry.device || entry.deviceId || entry.src || entry.source || entry.elementId || "unknown"
       const port = entry.port || entry.portNumber || entry.srcPort || entry.sourcePort || "?"
       const utilization =

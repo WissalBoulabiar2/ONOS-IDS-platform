@@ -482,6 +482,12 @@ APIs a exploiter:
 
 Etat actuel:
 - `topology` est branchee au backend reel et doit maintenant lire ONOS en direct par defaut
+- `topology` lit maintenant ONOS en direct avec:
+  - coloration des liens par charge
+  - details de ports sur le noeud selectionne
+  - panneau de detail de lien
+  - analyse de chemin ONOS entre 2 equipements
+  - mise en evidence visuelle du chemin calcule
 
 Prochaines ameliorations:
 - details de lien
