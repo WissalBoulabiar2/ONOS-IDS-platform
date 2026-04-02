@@ -1,0 +1,59 @@
+# Multi-stage build for Node.js backend
+# Stage 1: Builder
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production && \
+    npm cache clean --force
+
+# Copy source
+COPY PlatformSDN/backend ./backend
+COPY .eslintrc.json .prettierrc ./
+
+# Run linter
+RUN npm run lint
+
+# Stage 2: Runtime
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Create non-root user
+RUN addgroup -g 1000 appuser && \
+    adduser -D -u 1000 -G appuser appuser
+
+# Copy only necessary files from builder
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/backend ./backend
+COPY --from=builder /app/package*.json ./
+
+# Copy configuration
+COPY .env.example .env
+
+# Set environment
+ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=1024"
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:5000/api/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+# Switch to non-root user
+USER appuser
+
+# Expose port
+EXPOSE 5000
+
+# Use dumb-init to ensure proper signal handling
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start application
+CMD ["node", "backend/server-clean.js"]
