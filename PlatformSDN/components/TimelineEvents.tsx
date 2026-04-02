@@ -69,7 +69,7 @@ export function TimelineEvents({
               <p>No events yet</p>
             </div>
           ) : (
-            sortedEvents.map((event, idx) => (
+            sortedEvents.map((event) => (
               <div key={event.id} className={`p-4 rounded-lg ${getTypeColor(event.type)}`}>
                 <div className="flex gap-3">
                   <div className="flex-shrink-0 pt-1">

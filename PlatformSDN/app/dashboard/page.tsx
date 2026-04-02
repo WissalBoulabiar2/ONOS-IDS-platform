@@ -47,9 +47,7 @@ import {
   TrendingUp,
   Users,
   Zap,
-  BarChart3,
   Flame,
-  Clock,
 } from "lucide-react"
 
 const COLORS = ["#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"]
@@ -155,7 +153,7 @@ export default function DashboardPage() {
     try {
       setExporting(true)
       await exportToPDF("dashboard-container", `SDN-Dashboard-${new Date().toISOString().split("T")[0]}.pdf`)
-    } catch (exportError) {
+    } catch {
       // Silently handle export errors
     } finally {
       setExporting(false)
@@ -163,7 +161,7 @@ export default function DashboardPage() {
   }
 
   const stats = statsResponse?.stats
-  const devices = metricsResponse?.metrics || []
+  const devices = useMemo(() => metricsResponse?.metrics ?? [], [metricsResponse])
 
   const deviceTypeData = useMemo(
     () =>

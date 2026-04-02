@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { DeviceTable } from "@/components/DeviceTable"
 import { DeviceDetailsModal } from "@/components/DeviceDetailsModal"
@@ -51,14 +51,14 @@ export default function DevicesPage() {
   const [showModal, setShowModal] = useState(false)
   const [portsLoading, setPortsLoading] = useState(false)
 
-  const normalizeType = (type?: string) => {
+  const normalizeType = useCallback((type?: string) => {
     const normalized = (type || "switch").toLowerCase()
     return normalized === "switch" || normalized === "router" || normalized === "host"
       ? normalized
       : "switch"
-  }
+  }, [])
 
-  const mapApiDevice = (device: ApiDevice, portCount?: number): Device => {
+  const mapApiDevice = useCallback((device: ApiDevice, portCount?: number): Device => {
     const shortId = device.id.split(":").pop() || device.id
 
     return {
@@ -70,20 +70,23 @@ export default function DevicesPage() {
       serialNumber: device.serialNumber || "N/A",
       portCount,
     }
-  }
+  }, [normalizeType])
 
-  const mapMockDevices = (): Device[] =>
-    mockDevices.map((device) => ({
-      id: device.id,
-      type: device.type,
-      available: device.status === "active",
-      name: device.name,
-      manufacturer: device.manufacturer || "Unknown",
-      serialNumber: "N/A",
-      portCount: getMockDevicePorts(device.id).length,
-    }))
+  const mapMockDevices = useCallback(
+    (): Device[] =>
+      mockDevices.map((device) => ({
+        id: device.id,
+        type: device.type,
+        available: device.status === "active",
+        name: device.name,
+        manufacturer: device.manufacturer || "Unknown",
+        serialNumber: "N/A",
+        portCount: getMockDevicePorts(device.id).length,
+      })),
+    []
+  )
 
-  const fetchDevices = async () => {
+  const fetchDevices = useCallback(async () => {
     setLoading(true)
     setError(null)
 
@@ -109,11 +112,11 @@ export default function DevicesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [mapApiDevice, mapMockDevices])
 
   useEffect(() => {
     fetchDevices()
-  }, [])
+  }, [fetchDevices])
 
   const handleSelectDevice = async (device: Device) => {
     setSelectedDevice(device)
@@ -152,6 +155,8 @@ export default function DevicesPage() {
 
   const handleAction = (action: string, device: Device) => {
     // Device action initiated - logged server-side
+    void action
+    void device
   }
 
   const handleRefresh = () => {

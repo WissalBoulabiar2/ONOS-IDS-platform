@@ -15,7 +15,7 @@ import {
   LineChart,
   Line,
 } from "recharts"
-import { Network, HardDrive, Activity, AlertCircle, CheckCircle } from "lucide-react"
+import { Network } from "lucide-react"
 
 interface Device {
   id: string
@@ -61,7 +61,7 @@ export function DeviceDetailsModal({
     { time: "16:00", rx: 320, tx: 300 },
   ]
 
-  const portStatsData = (ports || []).map((port, idx) => ({
+  const portStatsData = (ports || []).map((port) => ({
     name: `Port ${port.portNumber}`,
     rx: port.rxBytes,
     tx: port.txBytes,

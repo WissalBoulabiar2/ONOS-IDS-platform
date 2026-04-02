@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Search, Filter, ChevronRight, Power, AlertCircle } from "lucide-react"
+import { Search, ChevronRight, Power } from "lucide-react"
 
 interface Device {
   id: string

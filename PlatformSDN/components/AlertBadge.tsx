@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   Info,
   CheckCircle,
-  XCircle,
 } from "lucide-react"
 
 interface AlertBadgeProps {

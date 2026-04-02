@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react"
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
   clearAuthSession,
@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  const refreshProfile = async () => {
+  const refreshProfile = useCallback(async () => {
     try {
       const response = await sdnApi.getCurrentUser()
       setUser(response.user)
@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearAuthSession()
       setUser(null)
     }
-  }
+  }, [])
 
   useEffect(() => {
     if (!hasAuthSession()) {
@@ -51,16 +51,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshProfile().finally(() => {
       setIsLoading(false)
     })
-  }, [])
+  }, [refreshProfile])
 
-  const login = async ({ identifier, password, rememberMe = false }: LoginParams) => {
+  const login = useCallback(async ({ identifier, password, rememberMe = false }: LoginParams) => {
     const response = await sdnApi.login(identifier, password)
     persistAuthSession(response.token, response.user.role, rememberMe)
     setUser(response.user)
     return response.user
-  }
+  }, [])
 
-  const logout = () => {
+  const logout = useCallback(() => {
     // Notify backend of logout
     fetch("/api/auth/logout", {
       method: "POST",
@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearAuthSession()
     setUser(null)
     router.push("/login")
-  }
+  }, [router])
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
       refreshProfile,
     }),
-    [user, isLoading]
+    [user, isLoading, login, logout, refreshProfile]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

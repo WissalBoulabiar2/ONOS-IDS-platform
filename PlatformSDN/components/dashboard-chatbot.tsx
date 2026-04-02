@@ -325,7 +325,7 @@ export function DashboardChatbot({ stats, overview, linkLoadCount }: DashboardCh
 
       {!isOpen && (
         <div className="pointer-events-auto hidden rounded-full border border-white/60 bg-white/80 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-lg backdrop-blur xl:block dark:border-white/10 dark:bg-slate-900/75 dark:text-slate-300">
-          Ouvrir l'assistant IA
+          Ouvrir l&apos;assistant IA
         </div>
       )}
 

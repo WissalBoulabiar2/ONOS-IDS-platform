@@ -105,8 +105,8 @@ export function TopologyMap({
         return
       }
 
-      const module = await import("cytoscape")
-      cytoscape = (module.default ?? module) as unknown as CytoscapeFactory
+      const cytoscapeModule = await import("cytoscape")
+      cytoscape = (cytoscapeModule.default ?? cytoscapeModule) as unknown as CytoscapeFactory
 
       if (!cancelled) {
         setCyReady(true)

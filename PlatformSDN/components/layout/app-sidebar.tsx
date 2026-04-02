@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useEffect, useState } from "react"
+import { type ReactNode, useEffect, useState } from "react"
 import {
   Activity,
   AlertCircle,
@@ -21,11 +21,11 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 interface NavItem {
-  icon: React.ReactNode
+  icon: ReactNode
   label: string
   href?: string
   items?: NavItem[]
-  badge?: React.ReactNode
+  badge?: ReactNode
 }
 
 const navigationItems: NavItem[] = [
