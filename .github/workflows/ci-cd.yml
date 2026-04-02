@@ -8,15 +8,13 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE: ${{ github.repository }}/sdn-platform-backend
-  FRONTEND_IMAGE: ${{ github.repository }}/sdn-platform-frontend
+  BACKEND_IMAGE_NAME: sdn-platform-backend
+  FRONTEND_IMAGE_NAME: sdn-platform-frontend
 
 jobs:
   code-quality:
     name: Code Quality & Linting
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - uses: actions/checkout@v4
@@ -47,8 +45,6 @@ jobs:
   backend-tests:
     name: Backend Unit Tests
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     services:
       postgres:
@@ -86,8 +82,9 @@ jobs:
           DB_NAME: sdn_platform_test
           DB_USER: test
           DB_PASSWORD: test
+          PGPASSWORD: test
         run: |
-          psql -h localhost -U test -d sdn_platform_test < PlatformSDN/backend/migrations/001_initial_schema.sql || true
+          psql -v ON_ERROR_STOP=1 -h localhost -U test -d sdn_platform_test -f PlatformSDN/backend/migrations/001_initial_schema.sql || true
 
       - name: Run tests
         working-directory: PlatformSDN
@@ -110,8 +107,6 @@ jobs:
   frontend-tests:
     name: Frontend Tests
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - uses: actions/checkout@v4
@@ -146,8 +141,6 @@ jobs:
   security:
     name: Security Scanning
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       contents: read
       security-events: write
@@ -156,7 +149,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -167,12 +160,11 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-results.sarif'
+        continue-on-error: true
 
   build-backend:
     name: Build Backend Image
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     needs: [code-quality, backend-tests]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
@@ -184,10 +176,15 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
+
+      - name: Normalize backend image name
+        id: image
+        shell: bash
+        run: echo "name=${GITHUB_REPOSITORY,,}/${BACKEND_IMAGE_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -195,9 +192,9 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}
+          images: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
@@ -205,21 +202,19 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push backend
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile.backend
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:buildcache,mode=max
 
   build-frontend:
     name: Build Frontend Image
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     needs: [code-quality, frontend-tests]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
 
@@ -231,10 +226,15 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
+
+      - name: Normalize frontend image name
+        id: image
+        shell: bash
+        run: echo "name=${GITHUB_REPOSITORY,,}/${FRONTEND_IMAGE_NAME}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -242,9 +242,9 @@ jobs:
 
       - name: Extract metadata
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}
+          images: ${{ env.REGISTRY }}/${{ steps.image.outputs.name }}
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
@@ -252,21 +252,19 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push frontend
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: ./PlatformSDN
           file: ./PlatformSDN/app/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:buildcache,mode=max
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ steps.image.outputs.name }}:buildcache,mode=max
 
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     needs: [build-backend, build-frontend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
 
@@ -290,8 +288,6 @@ jobs:
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     needs: [build-backend, build-frontend]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
@@ -315,11 +311,9 @@ jobs:
           # Add health check commands
 
       - name: Create release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ github.run_number }}
-          release_name: Release v${{ github.run_number }}
+          tag_name: v${{ github.run_number }}-${{ github.run_attempt }}
+          release_name: Release v${{ github.run_number }}.${{ github.run_attempt }}
           draft: false
           prerelease: false
