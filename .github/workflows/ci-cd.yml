@@ -17,24 +17,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: PlatformSDN/package-lock.json
 
       - name: Install dependencies
+        working-directory: PlatformSDN
         run: npm ci
 
       - name: Run ESLint
+        working-directory: PlatformSDN
         run: npm run lint
 
       - name: Run Prettier
+        working-directory: PlatformSDN
         run: npm run format:check
 
       - name: Security audit
+        working-directory: PlatformSDN
         run: npm audit --audit-level=moderate
 
   backend-tests:
@@ -57,15 +62,17 @@ jobs:
           - 5432:5432
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: PlatformSDN/package-lock.json
 
       - name: Install dependencies
+        working-directory: PlatformSDN
         run: npm ci
 
       - name: Setup database
@@ -79,6 +86,7 @@ jobs:
           psql -h localhost -U test -d sdn_platform_test < PlatformSDN/backend/migrations/001_initial_schema.sql
 
       - name: Run tests
+        working-directory: PlatformSDN
         env:
           DB_HOST: localhost
           DB_PORT: 5432
@@ -90,7 +98,7 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         with:
-          files: ./coverage/backend/coverage-final.json
+          files: ./PlatformSDN/coverage/backend/coverage-final.json
           flags: backend
           name: backend-coverage
 
@@ -99,36 +107,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: PlatformSDN/package-lock.json
 
       - name: Install dependencies
+        working-directory: PlatformSDN
         run: npm ci
 
       - name: Run frontend tests
+        working-directory: PlatformSDN
         run: npm run test:frontend
 
       - name: Build frontend
-        run: cd PlatformSDN/app && npm run build
+        working-directory: PlatformSDN
+        run: cd app && npm run build
 
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         with:
-          files: ./coverage/frontend/coverage-final.json
+          files: ./PlatformSDN/coverage/frontend/coverage-final.json
           flags: frontend
           name: frontend-coverage
 
   security:
     name: Security Scanning
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
@@ -139,7 +154,7 @@ jobs:
           output: 'trivy-results.sarif'
 
       - name: Upload Trivy results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
 
@@ -154,7 +169,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -199,7 +214,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -244,7 +259,7 @@ jobs:
       url: https://staging.sdn-platform.local
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Deploy to staging
         run: |
@@ -267,7 +282,7 @@ jobs:
       url: https://sdn-platform.local
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Deploy to production
         run: |
