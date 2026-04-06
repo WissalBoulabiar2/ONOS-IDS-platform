@@ -7,6 +7,31 @@ $frontendOut = Join-Path $root "frontend-runtime.log"
 $frontendErr = Join-Path $root "frontend-runtime.err.log"
 $npm = (Get-Command npm.cmd).Source
 $nextBuildDir = Join-Path $root ".next"
+$backendEnvPath = Join-Path $root "backend\.env"
+
+function Get-EnvValue {
+  param(
+    [string]$FilePath,
+    [string]$Key,
+    [string]$DefaultValue = ""
+  )
+
+  if (-not (Test-Path $FilePath)) {
+    return $DefaultValue
+  }
+
+  $line = Get-Content $FilePath | Where-Object { $_ -match "^$Key=" } | Select-Object -First 1
+
+  if (-not $line) {
+    return $DefaultValue
+  }
+
+  $value = $line.Substring($Key.Length + 1).Trim()
+  return $value.Trim('"')
+}
+
+$adminEmail = Get-EnvValue -FilePath $backendEnvPath -Key "DEFAULT_ADMIN_EMAIL" -DefaultValue "admin@sdn.local"
+$adminPassword = Get-EnvValue -FilePath $backendEnvPath -Key "DEFAULT_ADMIN_PASSWORD" -DefaultValue "admin123"
 
 if (-not (Test-Path (Join-Path $root ".env.local"))) {
   Copy-Item (Join-Path $root ".env.local.example") (Join-Path $root ".env.local")
@@ -57,7 +82,7 @@ Write-Host "Frontend: http://localhost:3000/login"
 Write-Host "Backend:  http://localhost:5000/api/health"
 Write-Host ""
 Write-Host "Use these credentials:"
-Write-Host "  admin@sdn.local / admin123"
+Write-Host "  $adminEmail / $adminPassword"
 Write-Host ""
 Write-Host "Logs:"
 Write-Host "  $backendOut"

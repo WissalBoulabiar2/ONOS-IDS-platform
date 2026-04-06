@@ -16,8 +16,6 @@ const nextConfig = {
       { source: '/blog/:slug*', destination: '/', permanent: false },
       { source: '/consultation', destination: '/contact', permanent: false },
       { source: '/pricing', destination: '/configuration', permanent: false },
-      { source: '/services', destination: '/configuration', permanent: false },
-      { source: '/services/:path*', destination: '/configuration', permanent: false },
       { source: '/testimonials', destination: '/', permanent: false },
     ];
   },

@@ -3137,6 +3137,16 @@ app.get('/api/onos/applications', async (_req, res) => {
         state: a.state,
         category: a.category || 'other',
         version: a.version || 'unknown',
+        description: a.description || null,
+        origin: a.origin || a.url || null,
+        featuresRepo: a.featuresRepo || null,
+        features: Array.isArray(a.features) ? a.features : [],
+        permissions: Array.isArray(a.permissions) ? a.permissions : [],
+        requiredApps: Array.isArray(a.requiredApps)
+          ? a.requiredApps
+          : Array.isArray(a.requiredApplications)
+            ? a.requiredApplications
+            : [],
       })),
     });
   } catch (error) {
@@ -3146,6 +3156,52 @@ app.get('/api/onos/applications', async (_req, res) => {
     });
   }
 });
+
+app.post('/api/onos/applications/:appId/activate', requireRole('admin', 'operator'), async (req, res) => {
+  try {
+    await axios.post(`${ONOS_API}/applications/${encodeURIComponent(req.params.appId)}/activate`, null, {
+      auth: { username: ONOS_CONFIG.user, password: ONOS_CONFIG.password },
+    });
+
+    res.json({
+      message: 'Application activated successfully',
+      applicationId: req.params.appId,
+      state: 'ACTIVE',
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Failed to activate application',
+      message: error.message,
+    });
+  }
+});
+
+app.post(
+  '/api/onos/applications/:appId/deactivate',
+  requireRole('admin', 'operator'),
+  async (req, res) => {
+    try {
+      await axios.post(
+        `${ONOS_API}/applications/${encodeURIComponent(req.params.appId)}/deactivate`,
+        null,
+        {
+          auth: { username: ONOS_CONFIG.user, password: ONOS_CONFIG.password },
+        }
+      );
+
+      res.json({
+        message: 'Application deactivated successfully',
+        applicationId: req.params.appId,
+        state: 'INSTALLED',
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: 'Failed to deactivate application',
+        message: error.message,
+      });
+    }
+  }
+);
 
 // ============================================
 // NEW: ONOS Intents Endpoint

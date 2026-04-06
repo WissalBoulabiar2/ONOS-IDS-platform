@@ -10,6 +10,10 @@ const protectedRoutes = [
   '/topology',
   '/flows',
   '/alerts',
+  '/applications',
+  '/terminal',
+  '/metrics',
+  '/ai-security',
   '/services',
   '/configuration',
 ];

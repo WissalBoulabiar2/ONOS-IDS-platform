@@ -376,8 +376,14 @@ export interface ApplicationsResponse {
     id: string;
     name: string;
     state: string;
-    category: string;
-    version: string;
+    category?: string | null;
+    version?: string | null;
+    description?: string | null;
+    origin?: string | null;
+    featuresRepo?: string | null;
+    features?: string[];
+    permissions?: string[];
+    requiredApps?: string[];
   }>;
 }
 
@@ -708,6 +714,24 @@ export const sdnApi = {
       summary: { total: 0, active: 0, inactive: 0 },
       applications: [],
     }));
+  },
+
+  async activateApplication(appId: string) {
+    return requestJson<{ message: string; applicationId: string; state: string }>(
+      `/onos/applications/${encodeURIComponent(appId)}/activate`,
+      {
+        method: 'POST',
+      }
+    );
+  },
+
+  async deactivateApplication(appId: string) {
+    return requestJson<{ message: string; applicationId: string; state: string }>(
+      `/onos/applications/${encodeURIComponent(appId)}/deactivate`,
+      {
+        method: 'POST',
+      }
+    );
   },
 
   // NEW: ONOS Intents

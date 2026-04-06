@@ -1,141 +1,69 @@
 'use client';
 
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { type ReactNode, useEffect, useState } from 'react';
 import {
   Activity,
-  AlertCircle,
-  BarChart3,
-  ChevronDown,
-  Cog,
-  Layers,
-  Network,
-  Wifi,
+  AlertTriangle,
+  AppWindow,
+  GitBranch,
+  HardDrive,
+  LayoutDashboard,
   Menu,
-  ShieldCheck,
+  Network,
+  Settings,
+  Shield,
+  Terminal,
+  Users,
   X,
+  Zap,
 } from 'lucide-react';
-import { useAuth } from '@/components/auth-provider';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 
-interface NavItem {
-  icon: ReactNode;
-  label: string;
-  href?: string;
-  items?: NavItem[];
-  badge?: ReactNode;
-}
-
-const navigationItems: NavItem[] = [
+const NAV_ITEMS = [
   {
-    icon: <BarChart3 className="h-5 w-5" />,
-    label: 'Dashboard',
-    href: '/dashboard',
-  },
-  {
-    icon: <Network className="h-5 w-5" />,
-    label: 'Network',
+    group: 'Overview',
     items: [
-      { icon: <Layers className="h-4 w-4" />, label: 'Topology', href: '/topology' },
-      { icon: <Activity className="h-4 w-4" />, label: 'Devices', href: '/devices' },
-      { icon: <AlertCircle className="h-4 w-4" />, label: 'Alerts', href: '/alerts' },
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/topology', label: 'Topology', icon: GitBranch },
     ],
   },
   {
-    icon: <Wifi className="h-5 w-5" />,
-    label: 'Services',
+    group: 'Network',
     items: [
-      { icon: <Activity className="h-4 w-4" />, label: 'Flows', href: '/flows' },
-      { icon: <Network className="h-4 w-4" />, label: 'VPLS', href: '/services' },
+      { href: '/devices', label: 'Devices', icon: HardDrive },
+      { href: '/flows', label: 'Flows', icon: Zap },
+      { href: '/services', label: 'VPLS Services', icon: Network },
+      { href: '/applications', label: 'Applications', icon: AppWindow },
     ],
   },
   {
-    icon: <Cog className="h-5 w-5" />,
-    label: 'Configuration',
-    href: '/configuration',
+    group: 'Security & AI',
+    items: [
+      { href: '/alerts', label: 'Alerts', icon: AlertTriangle },
+      { href: '/ai-security', label: 'AI Detection', icon: Shield },
+    ],
   },
-];
-
-const adminItems: NavItem[] = [
   {
-    icon: <ShieldCheck className="h-5 w-5" />,
-    label: 'Users',
-    href: '/admin/users',
+    group: 'Tools',
+    items: [
+      { href: '/terminal', label: 'SSH Terminal', icon: Terminal },
+      { href: '/metrics', label: 'Metrics', icon: Activity },
+    ],
+  },
+  {
+    group: 'Admin',
+    items: [
+      { href: '/admin/users', label: 'Users', icon: Users },
+      { href: '/configuration', label: 'Configuration', icon: Settings },
+    ],
   },
 ];
-
-function isRouteActive(pathname: string, href: string) {
-  return pathname === href || (href !== '/dashboard' && pathname.startsWith(`${href}/`));
-}
-
-function NavItemComponent({ item, depth = 0 }: { item: NavItem; depth?: number }) {
-  const pathname = usePathname();
-  const [isOpen, setIsOpen] = useState(false);
-
-  const isActive = item.href ? isRouteActive(pathname, item.href) : false;
-  const hasChildren = item.items && item.items.length > 0;
-
-  useEffect(() => {
-    if (hasChildren) {
-      const isChildActive = item.items?.some(
-        (child) => child.href && isRouteActive(pathname, child.href)
-      );
-      setIsOpen(isChildActive || false);
-    }
-  }, [pathname, hasChildren, item.items]);
-
-  if (item.href) {
-    return (
-      <Link
-        href={item.href}
-        className={cn(
-          'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-          isActive
-            ? 'bg-primary text-primary-foreground'
-            : 'text-sidebar-foreground hover:bg-sidebar/80 hover:text-primary',
-          depth > 0 && 'ml-4'
-        )}
-      >
-        {item.icon}
-        <span className="flex-1">{item.label}</span>
-        {item.badge}
-      </Link>
-    );
-  }
-
-  return (
-    <div>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={cn(
-          'group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-          isOpen
-            ? 'bg-sidebar/80 text-primary'
-            : 'text-sidebar-foreground hover:bg-sidebar/80 hover:text-primary'
-        )}
-      >
-        {item.icon}
-        <span className="flex-1 text-left">{item.label}</span>
-        <ChevronDown className={cn('h-4 w-4 transition-transform', isOpen && 'rotate-180')} />
-      </button>
-
-      {isOpen && hasChildren && (
-        <div className="space-y-1 border-l border-sidebar-border py-2 pl-2">
-          {item.items?.map((child, index) => (
-            <NavItemComponent key={index} item={child} depth={depth + 1} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function AppSidebar() {
-  const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
-  const { user } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     setIsOpen(false);
@@ -143,47 +71,59 @@ export function AppSidebar() {
 
   return (
     <>
-      {/* Mobile Toggle Button */}
       <Button
         variant="ghost"
         size="icon"
-        className="fixed bottom-4 left-4 z-40 lg:hidden"
-        onClick={() => setIsOpen(!isOpen)}
+        className="fixed bottom-4 left-4 z-40 border border-slate-800 bg-slate-950 text-slate-200 shadow-lg lg:hidden"
+        onClick={() => setIsOpen((value) => !value)}
       >
         {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </Button>
 
-      {/* Sidebar */}
       <aside
-        className={cn(
-          'fixed left-0 top-16 h-[calc(100vh-64px)] w-64 overflow-y-auto border-r border-sidebar-border bg-sidebar transition-transform duration-300 lg:relative lg:translate-x-0',
+        className={`fixed left-0 top-16 z-30 h-[calc(100vh-64px)] w-56 flex-shrink-0 border-r border-slate-800 bg-slate-950 transition-transform duration-300 lg:static lg:z-auto lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        )}
+        } lg:flex`}
       >
-        <nav className="space-y-1 p-4">
-          {navigationItems.map((item, index) => (
-            <NavItemComponent key={index} item={item} />
-          ))}
-
-          {user?.role === 'admin' && (
-            <div className="mt-4 border-t border-sidebar-border pt-4">
-              <p className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Administration
+        <nav className="flex-1 overflow-y-auto px-3 py-4">
+          {NAV_ITEMS.map((group) => (
+            <div key={group.group} className="mb-5">
+              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+                {group.group}
               </p>
-              <div className="mt-3 space-y-1">
-                {adminItems.map((item, index) => (
-                  <NavItemComponent key={index} item={item} />
-                ))}
-              </div>
+              <ul className="space-y-0.5">
+                {group.items.map(({ href, label, icon: Icon }) => {
+                  const active = pathname === href || pathname.startsWith(`${href}/`);
+
+                  return (
+                    <li key={href}>
+                      <Link
+                        href={href}
+                        className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                          active
+                            ? 'bg-cyan-500/10 text-cyan-400'
+                            : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                        }`}
+                      >
+                        <Icon
+                          className={`h-4 w-4 flex-shrink-0 ${
+                            active ? 'text-cyan-400' : 'text-slate-500'
+                          }`}
+                        />
+                        {label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-          )}
+          ))}
         </nav>
       </aside>
 
-      {/* Overlay for mobile */}
       {isOpen && (
         <div
-          className="fixed inset-0 top-16 z-30 bg-black/50 lg:hidden"
+          className="fixed inset-0 top-16 z-20 bg-black/50 lg:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
