@@ -8,7 +8,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
+  Cell, 
   Pie,
   PieChart,
   ResponsiveContainer,

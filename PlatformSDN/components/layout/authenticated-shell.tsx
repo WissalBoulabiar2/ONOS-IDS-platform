@@ -15,9 +15,9 @@ export function AuthenticatedShell({
   mainId?: string;
 }) {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="flex h-screen flex-col bg-background text-foreground">
       <AppHeader />
-      <div className="flex min-h-[calc(100vh-64px)]">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <AppSidebar />
         <main id={mainId} className="min-w-0 flex-1 overflow-y-auto">
           <div className={cn('mx-auto w-full px-4 py-8 sm:px-6 lg:px-8', contentClassName)}>

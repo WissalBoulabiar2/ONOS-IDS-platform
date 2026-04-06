@@ -1,4 +1,7 @@
 const express = require('express');
+const http = require('http');
+const { WebSocketServer } = require('ws');
+const { Client: SshClient } = require('ssh2');
 const cors = require('cors');
 const axios = require('axios');
 const fs = require('fs');
@@ -3355,6 +3358,95 @@ app.use((_req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
+// ─── HTTP server + WebSocket SSH proxy ────────────────────────────────────────
+
+const server = http.createServer(app);
+const wss = new WebSocketServer({ noServer: true });
+
+server.on('upgrade', (req, socket, head) => {
+  const reqUrl = req.url || '';
+  if (reqUrl === '/api/ssh/ws' || reqUrl.startsWith('/api/ssh/ws?')) {
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+  } else {
+    socket.destroy();
+  }
+});
+
+wss.on('connection', (ws) => {
+  let ssh = null;
+  let stream = null;
+
+  function safeSend(data) {
+    try {
+      if (ws.readyState === ws.OPEN) ws.send(JSON.stringify(data));
+    } catch (_) {}
+  }
+
+  ws.on('message', (raw) => {
+    try {
+      const msg = JSON.parse(String(raw));
+
+      if (msg.type === 'connect') {
+        if (ssh) { ssh.end(); ssh = null; stream = null; }
+
+        ssh = new SshClient();
+
+        ssh.on('ready', () => {
+          ssh.shell({ term: 'xterm-color', rows: msg.rows || 24, cols: msg.cols || 80 }, (err, sh) => {
+            if (err) {
+              safeSend({ type: 'error', data: err.message });
+              return;
+            }
+            stream = sh;
+            safeSend({ type: 'ready' });
+
+            stream.on('data', (chunk) => safeSend({ type: 'output', data: chunk.toString() }));
+            stream.stderr.on('data', (chunk) => safeSend({ type: 'output', data: chunk.toString() }));
+            stream.on('close', () => {
+              safeSend({ type: 'output', data: '\r\nSession closed.\r\n' });
+              try { ws.close(); } catch (_) {}
+            });
+          });
+        });
+
+        ssh.on('error', (err) => safeSend({ type: 'error', data: err.message }));
+
+        ssh.connect({
+          host: String(msg.host || ''),
+          port: Number(msg.port) || 22,
+          username: String(msg.username || ''),
+          password: String(msg.password || ''),
+          readyTimeout: 15000,
+          algorithms: {
+            kex: [
+              'ecdh-sha2-nistp256',
+              'diffie-hellman-group14-sha256',
+              'diffie-hellman-group14-sha1',
+              'diffie-hellman-group1-sha1',
+            ],
+            serverHostKey: ['ssh-rsa', 'ecdsa-sha2-nistp256', 'ssh-ed25519'],
+          },
+        });
+
+      } else if (msg.type === 'input' && stream) {
+        stream.write(String(msg.data || ''));
+
+      } else if (msg.type === 'resize' && stream) {
+        stream.setWindow(Number(msg.rows) || 24, Number(msg.cols) || 80, 0, 0);
+      }
+    } catch (_) {}
+  });
+
+  ws.on('close', () => {
+    try { if (stream) stream.end(); } catch (_) {}
+    try { if (ssh) ssh.end(); } catch (_) {}
+    ssh = null;
+    stream = null;
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function startServer() {
   const databaseConnected = await refreshDatabaseStatus();
 
@@ -3375,10 +3467,11 @@ async function startServer() {
     }
   }
 
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`[OK] SDN Platform backend running on port ${PORT}`);
     console.log(`[ONOS] Controller: ${ONOS_URL}`);
     console.log(`[API] Base: http://localhost:${PORT}/api`);
+    console.log(`[SSH] WebSocket proxy: ws://localhost:${PORT}/api/ssh/ws`);
     console.log(`[DB] Mode: ${databaseMode}`);
     console.log(`[AUTH] Default admin: ${DEFAULT_ADMIN_USER.email}`);
     startAutoSync();
