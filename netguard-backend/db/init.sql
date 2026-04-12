@@ -146,12 +146,3 @@ CREATE TRIGGER trg_flows_updated BEFORE UPDATE ON flow_rules
 CREATE TRIGGER trg_alerts_updated BEFORE UPDATE ON alerts
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
--- ADMIN PAR DEFAUT
--- Password: Admin@NetGuard1
-INSERT INTO users (username, email, hashed_password, role)
-VALUES (
-    'admin',
-    'admin@sdn.local',
-    '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/RCgMXDE0y',
-    'admin'
-) ON CONFLICT DO NOTHING;
